@@ -11,7 +11,8 @@ import {
 } from "./layout";
 import type { Side } from "./layout";
 
-const STORAGE_KEY = "kaleidoscope:palette";
+const STORAGE_KEY = "kaleidoscope:library";
+const OLD_STORAGE_KEY = "kaleidoscope:palette"; // a single palette, before the library
 const EXPORT_VERSION = 2;
 
 export const MIN_COLUMNS = 1;
@@ -54,7 +55,11 @@ export type Action =
   | { type: "moveSwatch"; id: string; groupId: string }
   | { type: "update"; id: string; patch: Partial<Omit<Swatch, "id">> }
   | { type: "remove"; id: string }
-  | { type: "replace"; palette: Palette };
+  // Library: these act on the saved palettes rather than the open one.
+  | { type: "newPalette"; id: string }
+  | { type: "openPalette"; id: string }
+  | { type: "deletePalette"; id: string }
+  | { type: "addPalette"; id: string; palette: Palette }; // from an import or shared link
 
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, n));
@@ -75,10 +80,11 @@ function nextGroupName(layout: LayoutNode): string {
   return `Group ${n}`;
 }
 
-const DEFAULT_PALETTE: Palette = {
-  name: "Untitled palette",
-  layout: makeGroup("Group 1", "default"),
-};
+const DEFAULT_NAME = "Untitled palette";
+
+function makePalette(): Palette {
+  return { name: DEFAULT_NAME, layout: makeGroup("Group 1") };
+}
 
 /** Apply `fn` to the swatch list of one group (or every group, if no id). */
 function editSwatches(
@@ -205,17 +211,63 @@ function layoutReducer(layout: LayoutNode, action: Action): LayoutNode {
       return editSwatches(layout, null, (swatches) =>
         swatches.filter((s) => s.id !== action.id),
       );
-    case "rename":
-    case "replace":
+    default:
       return layout;
   }
 }
 
-function reducer(state: Palette, action: Action): Palette {
+function paletteReducer(state: Palette, action: Action): Palette {
   if (action.type === "rename") return { ...state, name: action.name };
-  if (action.type === "replace") return action.palette;
   const layout = layoutReducer(state.layout, action);
   return layout === state.layout ? state : { ...state, layout };
+}
+
+/** One saved palette. */
+export type LibraryEntry = { id: string; palette: Palette; updatedAt: number };
+
+/** Every saved palette, and which one is open. */
+export type Library = { currentId: string; entries: LibraryEntry[] };
+
+function entry(palette: Palette, id: string = crypto.randomUUID()): LibraryEntry {
+  return { id, palette, updatedAt: Date.now() };
+}
+
+function libraryReducer(state: Library, action: Action): Library {
+  switch (action.type) {
+    case "newPalette":
+      return { currentId: action.id, entries: [...state.entries, entry(makePalette(), action.id)] };
+    case "addPalette":
+      return { currentId: action.id, entries: [...state.entries, entry(action.palette, action.id)] };
+    case "openPalette":
+      return state.entries.some((e) => e.id === action.id)
+        ? { ...state, currentId: action.id }
+        : state;
+    case "deletePalette": {
+      const entries = state.entries.filter((e) => e.id !== action.id);
+      if (entries.length === 0) {
+        // There's always a palette open; deleting the last one starts afresh.
+        const fresh = entry(makePalette());
+        return { currentId: fresh.id, entries: [fresh] };
+      }
+      if (state.currentId !== action.id) return { ...state, entries };
+      // Deleting the open palette opens the most recently edited one left.
+      const next = entries.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
+      return { currentId: next.id, entries };
+    }
+    default: {
+      // Everything else edits the open palette.
+      const current = state.entries.find((e) => e.id === state.currentId);
+      if (!current) return state;
+      const palette = paletteReducer(current.palette, action);
+      if (palette === current.palette) return state;
+      return {
+        ...state,
+        entries: state.entries.map((e) =>
+          e === current ? { ...e, palette, updatedAt: Date.now() } : e,
+        ),
+      };
+    }
+  }
 }
 
 function parseSwatches(list: unknown[], seenIds: Set<string>): Swatch[] {
@@ -289,7 +341,7 @@ export function parsePalette(data: unknown): Palette | null {
   if (!tidy) return null;
 
   return {
-    name: typeof name === "string" ? name : DEFAULT_PALETTE.name,
+    name: typeof name === "string" ? name : DEFAULT_NAME,
     layout: tidy,
   };
 }
@@ -329,25 +381,49 @@ export function serializePalette(palette: Palette): string {
   );
 }
 
-function load(): Palette {
+/** The library from storage; an older single saved palette becomes its first entry. */
+function load(): Library {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return (raw && parsePalette(JSON.parse(raw))) || DEFAULT_PALETTE;
+    if (raw) {
+      const data = JSON.parse(raw);
+      const entries: LibraryEntry[] = (Array.isArray(data?.entries) ? data.entries : []).flatMap(
+        (e: Record<string, unknown>): LibraryEntry[] => {
+          const palette = parsePalette(e?.palette);
+          if (!palette || typeof e.id !== "string") return [];
+          return [{ id: e.id, palette, updatedAt: Number(e.updatedAt) || 0 }];
+        },
+      );
+      if (entries.length > 0) {
+        const currentId = entries.some((e) => e.id === data.currentId)
+          ? data.currentId
+          : entries[0].id;
+        return { currentId, entries };
+      }
+    }
+    const old = localStorage.getItem(OLD_STORAGE_KEY);
+    const migrated = old ? parsePalette(JSON.parse(old)) : null;
+    const first = entry(migrated ?? makePalette());
+    return { currentId: first.id, entries: [first] };
   } catch {
-    return DEFAULT_PALETTE;
+    const first = entry(makePalette());
+    return { currentId: first.id, entries: [first] };
   }
 }
 
-export function usePalette() {
-  const [palette, dispatch] = useReducer(reducer, undefined, load);
+/** All saved palettes, with the open one, autosaved to localStorage. */
+export function useLibrary() {
+  const [library, dispatch] = useReducer(libraryReducer, undefined, load);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(palette));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+      localStorage.removeItem(OLD_STORAGE_KEY); // now part of the library
     } catch {
       // Storage can be unavailable (private mode, quota); the app still works.
     }
-  }, [palette]);
+  }, [library]);
 
-  return [palette, dispatch] as const;
+  const current = library.entries.find((e) => e.id === library.currentId)!;
+  return { palette: current.palette, library, dispatch };
 }

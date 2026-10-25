@@ -23,8 +23,9 @@ import type {
 } from "@dnd-kit/core";
 import { ColourSetting } from "./components/ColourSetting";
 import { GroupPanel } from "./components/GroupPanel";
+import { PaletteSwitcher } from "./components/PaletteSwitcher";
 import type { DropZone } from "./components/GroupPanel";
-import { parsePalette, serializePalette, usePalette } from "./palette";
+import { parsePalette, serializePalette, useLibrary } from "./palette";
 import { groupsOf, isFixed, layoutWeight } from "./layout";
 import type { LayoutNode } from "./types";
 import { parseHexList, textColorFor } from "./color";
@@ -189,7 +190,7 @@ function withTransition(update: () => void) {
 type ActiveDrag = { type: "swatch" | "group"; id: string };
 
 export default function App() {
-  const [palette, dispatch] = usePalette();
+  const { palette, library, dispatch } = useLibrary();
   const { theme, colours, setTheme: applyTheme, setColour } = useAppearance();
 
   /** Picking a theme goes back to its own colours: background and every group. */
@@ -266,9 +267,8 @@ export default function App() {
       setImportError(`“${file.name}” isn’t a palette file this app can read.`);
       return;
     }
-    const replacing = swatchCount > 0 || groups.length > 1;
-    if (replacing && !confirm(`Replace “${palette.name}” with “${imported.name}”?`)) return;
-    dispatch({ type: "replace", palette: imported });
+    // Imports are saved as a new palette alongside the others, and opened.
+    dispatch({ type: "addPalette", id: crypto.randomUUID(), palette: imported });
   }
 
   function handleDragStart({ active }: DragStartEvent) {
@@ -384,12 +384,13 @@ export default function App() {
       <header className="toolbar">
         <div className="masthead">
           <p className="kicker">Kaleidoscope · Palette</p>
-          <input
-            className="palette-name"
-            value={palette.name}
-            onChange={(e) => dispatch({ type: "rename", name: e.target.value })}
-            aria-label="Palette name"
-            spellCheck={false}
+          <PaletteSwitcher
+            entries={library.entries}
+            currentId={library.currentId}
+            onOpen={(id) => dispatch({ type: "openPalette", id })}
+            onNew={() => dispatch({ type: "newPalette", id: crypto.randomUUID() })}
+            onDelete={(id) => dispatch({ type: "deletePalette", id })}
+            onRename={(name) => dispatch({ type: "rename", name })}
           />
           <p className="palette-meta">
             {groups.length} {groups.length === 1 ? "group" : "groups"} · {swatchCount}{" "}
