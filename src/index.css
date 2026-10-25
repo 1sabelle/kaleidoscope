@@ -20,6 +20,7 @@
   --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
+  color-scheme: light dark;
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text);
@@ -27,8 +28,10 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Dark follows the OS unless light was picked, or applies when dark was
+   picked. The two blocks hold the same values. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #111113;
     --surface: #1c1c1f;
     --text: #f4f4f5;
@@ -39,6 +42,26 @@
     --accent-ink: #18181b;
     --danger: #f87171;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #111113;
+  --surface: #1c1c1f;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --border: #2e2e33;
+  --rule: #f4f4f5;
+  --accent: #f4f4f5;
+  --accent-ink: #18181b;
+  --danger: #f87171;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 * {
@@ -186,9 +209,58 @@ button {
   font-weight: 500;
 }
 
-.file-actions {
+/* Toolbar actions as plain text, separated by thin bars: "ADD GROUP | IMPORT". */
+.text-actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.text-btn {
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-underline-offset: 4px;
+  transition: color 0.15s;
+}
+
+.text-btn + .text-btn::before {
+  content: "|";
+  display: inline-block; /* keeps an underline on the button off it */
+  margin: 0 10px;
+  color: var(--border);
+}
+
+.text-btn:hover {
+  text-decoration: underline;
+}
+
+.text-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Auto | Light | Dark: the unchosen ones are muted, the chosen one underlined. */
+.theme-switch {
+  margin-left: 16px;
+}
+
+.theme-switch .text-btn {
+  color: var(--muted);
+}
+
+.theme-switch .text-btn:hover,
+.theme-switch .text-btn[aria-pressed="true"] {
+  color: var(--text);
+}
+
+.theme-switch .text-btn[aria-pressed="true"] {
+  text-decoration: underline;
 }
 
 .notice {

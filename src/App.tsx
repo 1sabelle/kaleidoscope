@@ -27,6 +27,8 @@ import { parsePalette, serializePalette, usePalette } from "./palette";
 import { groupsOf, isFixed, layoutWeight } from "./layout";
 import type { LayoutNode } from "./types";
 import { parseHexList, textColorFor } from "./color";
+import { useTheme } from "./theme";
+import type { Theme } from "./theme";
 
 type Point = { x: number; y: number };
 
@@ -187,6 +189,7 @@ type ActiveDrag = { type: "swatch" | "group"; id: string };
 
 export default function App() {
   const [palette, dispatch] = usePalette();
+  const [theme, setTheme] = useTheme();
   const [focusId, setFocusId] = useState<string | null>(null);
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [groupDrop, setGroupDrop] = useState<{ groupId: string; zone: DropZone } | null>(null);
@@ -380,38 +383,56 @@ export default function App() {
         </div>
 
         <div className="controls">
-          {groups.some((g) => g.width ?? g.height ?? g.offsetX ?? g.offsetY) && (
+          <div className="text-actions">
+            {groups.some((g) => g.width ?? g.height ?? g.offsetX ?? g.offsetY) && (
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => dispatch({ type: "resetSizes" })}
+                title="Undo hand-picked group sizes so groups fill the screen again"
+              >
+                Fit to screen
+              </button>
+            )}
+            <button type="button" className="text-btn" onClick={addGroup}>
+              Add group
+            </button>
             <button
               type="button"
-              className="btn"
-              onClick={() => dispatch({ type: "resetSizes" })}
-              title="Undo hand-picked group sizes so groups fill the screen again"
+              className="text-btn"
+              onClick={() => importRef.current?.click()}
             >
-              Fit to screen
-            </button>
-          )}
-          <button type="button" className="btn" onClick={addGroup}>
-            Add group
-          </button>
-
-          <div className="file-actions">
-            <button type="button" className="btn" onClick={() => importRef.current?.click()}>
               Import
             </button>
-            <button type="button" className="btn" onClick={exportPalette}>
+            <button type="button" className="text-btn" onClick={exportPalette}>
               Export
             </button>
-            <input
-              ref={importRef}
-              type="file"
-              accept=".json,application/json"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = ""; // so picking the same file again still fires
-                if (file) importPalette(file);
-              }}
-            />
+          </div>
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json,application/json"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = ""; // so picking the same file again still fires
+              if (file) importPalette(file);
+            }}
+          />
+
+          <div className="text-actions theme-switch" role="group" aria-label="Theme">
+            {(["system", "light", "dark"] as Theme[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                className="text-btn"
+                aria-pressed={theme === option}
+                onClick={() => setTheme(option)}
+                title={option === "system" ? "Follow your system setting" : undefined}
+              >
+                {option === "system" ? "Auto" : option}
+              </button>
+            ))}
           </div>
         </div>
       </header>

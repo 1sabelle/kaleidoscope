@@ -11,6 +11,13 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap"
     />
     <title>Kaleidoscope</title>
+    <script>
+      // Apply a saved light/dark choice before first paint (see src/theme.ts).
+      try {
+        const theme = localStorage.getItem("kaleidoscope:theme");
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
