@@ -9,6 +9,7 @@
   --danger: #dc2626;
   --radius: 14px;
   --gap: 12px;
+  --group-gap: 20px;
   --row-height: 160px;
 
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -164,6 +165,253 @@ button {
   line-height: 1;
 }
 
+/* ---------- Groups ---------- */
+
+.split {
+  display: flex;
+  gap: var(--group-gap);
+  min-width: 0;
+}
+
+.split-column {
+  flex-direction: column;
+}
+
+/* Side-by-side groups share the width in proportion to their column counts. */
+.split-row > * {
+  flex: var(--weight) 1 0;
+  min-width: 0;
+}
+
+.layout-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.group {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 6px);
+  background: var(--surface);
+  container-type: inline-size;
+  transition: opacity 0.15s;
+}
+
+.group.is-dragging {
+  opacity: 0.4;
+}
+
+.group-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.group-grip,
+.group-remove {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.group-grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+.group-grip:hover,
+.group-remove:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.group-grip:focus-visible {
+  outline: 2px solid var(--text);
+}
+
+.group-grip svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.group-remove svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.group-name {
+  flex: 1 1 120px;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 4px 8px;
+  border-radius: 8px;
+  text-overflow: ellipsis;
+}
+
+.group-name:hover,
+.group-name:focus {
+  background: var(--bg);
+  outline: none;
+}
+
+.group-name::placeholder {
+  color: var(--muted);
+}
+
+.group-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.group .stepper .btn {
+  height: 30px;
+  min-width: 30px;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.group .stepper-label {
+  font-size: 13px;
+}
+
+/* Narrow groups drop the "Columns" label; the stepper keeps its title. */
+@container (max-width: 380px) {
+  .group .stepper-label {
+    display: none;
+  }
+}
+
+/* Where a dragged group will land: a bar in the gap on one side, or the whole
+   group highlighted for a merge. */
+.drop-indicator {
+  position: absolute;
+  z-index: 20;
+  border-radius: 4px;
+  background: var(--text);
+  pointer-events: none;
+}
+
+.drop-left,
+.drop-right {
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.drop-top,
+.drop-bottom {
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.drop-left {
+  left: calc(var(--group-gap) / -2 - 2px);
+}
+
+.drop-right {
+  right: calc(var(--group-gap) / -2 - 2px);
+}
+
+.drop-top {
+  top: calc(var(--group-gap) / -2 - 2px);
+}
+
+.drop-bottom {
+  bottom: calc(var(--group-gap) / -2 - 2px);
+}
+
+.drop-merge {
+  inset: -1px;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  outline: 2px solid var(--text);
+}
+
+.drop-merge span {
+  max-width: calc(100% - 24px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* While a group is held, its contents shouldn't react to hovering. */
+.layout.is-moving-group .group > * {
+  pointer-events: none;
+}
+
+.group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 6px 12px 6px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.25), 0 0 0 1px var(--border);
+  cursor: grabbing;
+  transform: rotate(-1deg);
+}
+
+.group-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.group-chip-swatches {
+  display: flex;
+  flex: none;
+}
+
+.group-chip-swatches span {
+  width: 18px;
+  height: 18px;
+  margin-left: -5px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+}
+
+.group-chip-swatches span.is-blank {
+  background: var(--bg);
+}
+
 /* ---------- Grid ---------- */
 
 .grid {
@@ -184,9 +432,14 @@ button {
   transition: border-color 0.15s, color 0.15s;
 }
 
-.add-tile:hover {
+.add-tile:hover,
+.add-tile.is-drop-target {
   border-color: var(--muted);
   color: var(--text);
+}
+
+.add-tile.is-drop-target {
+  border-style: solid;
 }
 
 /* ---------- Swatch ---------- */
@@ -488,7 +741,21 @@ button {
 @media (max-width: 640px) {
   :root {
     --gap: 8px;
+    --group-gap: 14px;
     --row-height: 110px;
+  }
+
+  /* No room for groups side by side on a phone: stack them instead. */
+  .split-row {
+    flex-direction: column;
+  }
+
+  .split-row > * {
+    flex: none;
+  }
+
+  .group {
+    padding: 8px;
   }
 
   .app {

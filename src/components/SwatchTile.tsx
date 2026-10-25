@@ -41,6 +41,7 @@ export function SwatchTile({
   const hexRef = useRef<HTMLInputElement>(null);
   const { setNodeRef, attributes, listeners, isDragging, isOver } = useSortable({
     id: swatch.id,
+    data: { type: "swatch" },
   });
 
   // A swatch can be wider than the grid after columns are reduced; draw it clamped.

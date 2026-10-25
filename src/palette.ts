@@ -1,20 +1,36 @@
 import { useEffect, useReducer } from "react";
-import type { Palette, Swatch } from "./types";
+import type { Group, LayoutNode, Palette, Swatch } from "./types";
 import { normalizeHex } from "./color";
+import {
+  findGroup,
+  groupsOf,
+  insertBeside,
+  mapGroups,
+  normalize,
+  removeGroup,
+} from "./layout";
+import type { Side } from "./layout";
 
 const STORAGE_KEY = "kaleidoscope:palette";
-const EXPORT_VERSION = 1;
+const EXPORT_VERSION = 2;
 
 export const MIN_COLUMNS = 1;
 export const MAX_COLUMNS = 12;
 export const MAX_ROW_SPAN = 6;
+const MAX_DEPTH = 32; // guards parsing against absurdly nested files
 
 export type Action =
   | { type: "rename"; name: string }
-  | { type: "setColumns"; columns: number }
-  | { type: "add"; hexes: string[] }
-  | { type: "addBlank"; id: string }
+  | { type: "addGroup"; id: string }
+  | { type: "renameGroup"; groupId: string; name: string }
+  | { type: "setColumns"; groupId: string; columns: number }
+  | { type: "removeGroup"; groupId: string }
+  | { type: "moveGroup"; groupId: string; targetId: string; side: Side }
+  | { type: "mergeGroup"; groupId: string; intoId: string }
+  | { type: "add"; groupId: string; hexes: string[] }
+  | { type: "addBlank"; groupId: string; id: string }
   | { type: "swap"; id: string; withId: string }
+  | { type: "moveSwatch"; id: string; groupId: string }
   | { type: "update"; id: string; patch: Partial<Omit<Swatch, "id">> }
   | { type: "remove"; id: string }
   | { type: "replace"; palette: Palette };
@@ -26,105 +42,224 @@ function makeSwatch(hex: string | null, id: string = crypto.randomUUID()): Swatc
   return { id, hex, label: "", colSpan: 1, rowSpan: 1 };
 }
 
+function makeGroup(name: string, id: string = crypto.randomUUID()): Group {
+  return { kind: "group", id, name, columns: 4, swatches: [] };
+}
+
+/** "Group 2", "Group 3", … skipping any name already taken. */
+function nextGroupName(layout: LayoutNode): string {
+  const taken = new Set(groupsOf(layout).map((g) => g.name));
+  let n = groupsOf(layout).length + 1;
+  while (taken.has(`Group ${n}`)) n++;
+  return `Group ${n}`;
+}
+
 const DEFAULT_PALETTE: Palette = {
   name: "Untitled palette",
-  columns: 4,
-  swatches: [],
+  layout: makeGroup("Group 1", "default"),
 };
 
-function reducer(state: Palette, action: Action): Palette {
+/** Apply `fn` to the swatch list of one group (or every group, if no id). */
+function editSwatches(
+  layout: LayoutNode,
+  groupId: string | null,
+  fn: (swatches: Swatch[]) => Swatch[],
+): LayoutNode {
+  return mapGroups(layout, (g) =>
+    groupId === null || g.id === groupId ? { ...g, swatches: fn(g.swatches) } : g,
+  );
+}
+
+function layoutReducer(layout: LayoutNode, action: Action): LayoutNode {
   switch (action.type) {
-    case "rename":
-      return { ...state, name: action.name };
+    case "addGroup": {
+      // New groups go underneath everything else.
+      const group = makeGroup(nextGroupName(layout), action.id);
+      return layout.kind === "split" && layout.direction === "column"
+        ? { ...layout, children: [...layout.children, group] }
+        : { kind: "split", id: crypto.randomUUID(), direction: "column", children: [layout, group] };
+    }
+    case "renameGroup":
+      return mapGroups(layout, (g) => (g.id === action.groupId ? { ...g, name: action.name } : g));
     case "setColumns":
-      return {
-        ...state,
-        columns: clamp(action.columns, MIN_COLUMNS, MAX_COLUMNS),
-      };
+      return mapGroups(layout, (g) =>
+        g.id === action.groupId
+          ? { ...g, columns: clamp(action.columns, MIN_COLUMNS, MAX_COLUMNS) }
+          : g,
+      );
+    case "removeGroup":
+      // There's always at least one group to add colours to.
+      return removeGroup(layout, action.groupId) ?? layout;
+    case "moveGroup": {
+      const group = findGroup(layout, action.groupId);
+      if (!group || action.groupId === action.targetId) return layout;
+      const rest = removeGroup(layout, action.groupId);
+      if (!rest) return layout;
+      return normalize(insertBeside(rest, action.targetId, group, action.side)) ?? layout;
+    }
+    case "mergeGroup": {
+      // The group dropped onto keeps its name, size and place; the dragged
+      // group's colours are added after its own.
+      const source = findGroup(layout, action.groupId);
+      if (!source || action.groupId === action.intoId) return layout;
+      const merged = editSwatches(layout, action.intoId, (swatches) => [
+        ...swatches,
+        ...source.swatches,
+      ]);
+      return removeGroup(merged, action.groupId) ?? layout;
+    }
     case "add":
-      return {
-        ...state,
-        swatches: [...state.swatches, ...action.hexes.map((hex) => makeSwatch(hex))],
-      };
+      return editSwatches(layout, action.groupId, (swatches) => [
+        ...swatches,
+        ...action.hexes.map((hex) => makeSwatch(hex)),
+      ]);
     case "addBlank":
-      return { ...state, swatches: [...state.swatches, makeSwatch(null, action.id)] };
+      return editSwatches(layout, action.groupId, (swatches) => [
+        ...swatches,
+        makeSwatch(null, action.id),
+      ]);
     case "swap": {
-      const a = state.swatches.findIndex((s) => s.id === action.id);
-      const b = state.swatches.findIndex((s) => s.id === action.withId);
-      if (a === -1 || b === -1 || a === b) return state;
+      const all = groupsOf(layout).flatMap((g) => g.swatches);
+      const first = all.find((s) => s.id === action.id);
+      const second = all.find((s) => s.id === action.withId);
+      if (!first || !second || first === second) return layout;
       // Sizes stay with the slot, so the layout never shifts: only the two
-      // colours (and their labels) trade places.
-      const [first, second] = [state.swatches[a], state.swatches[b]];
-      const swatches = [...state.swatches];
-      swatches[a] = { ...second, colSpan: first.colSpan, rowSpan: first.rowSpan };
-      swatches[b] = { ...first, colSpan: second.colSpan, rowSpan: second.rowSpan };
-      return { ...state, swatches };
+      // colours (and their labels) trade places, even across groups.
+      return editSwatches(layout, null, (swatches) =>
+        swatches.map((s) => {
+          if (s.id === first.id) return { ...second, colSpan: s.colSpan, rowSpan: s.rowSpan };
+          if (s.id === second.id) return { ...first, colSpan: s.colSpan, rowSpan: s.rowSpan };
+          return s;
+        }),
+      );
+    }
+    case "moveSwatch": {
+      const swatch = groupsOf(layout)
+        .flatMap((g) => g.swatches)
+        .find((s) => s.id === action.id);
+      if (!swatch) return layout;
+      const without = editSwatches(layout, null, (swatches) =>
+        swatches.filter((s) => s.id !== action.id),
+      );
+      return editSwatches(without, action.groupId, (swatches) => [...swatches, swatch]);
     }
     case "update":
-      return {
-        ...state,
-        swatches: state.swatches.map((s) =>
-          s.id === action.id ? { ...s, ...action.patch } : s,
-        ),
-      };
+      return editSwatches(layout, null, (swatches) =>
+        swatches.map((s) => (s.id === action.id ? { ...s, ...action.patch } : s)),
+      );
     case "remove":
-      return {
-        ...state,
-        swatches: state.swatches.filter((s) => s.id !== action.id),
-      };
+      return editSwatches(layout, null, (swatches) =>
+        swatches.filter((s) => s.id !== action.id),
+      );
+    case "rename":
     case "replace":
-      return action.palette;
+      return layout;
   }
+}
+
+function reducer(state: Palette, action: Action): Palette {
+  if (action.type === "rename") return { ...state, name: action.name };
+  if (action.type === "replace") return action.palette;
+  const layout = layoutReducer(state.layout, action);
+  return layout === state.layout ? state : { ...state, layout };
+}
+
+function parseSwatches(list: unknown[], seenIds: Set<string>): Swatch[] {
+  return list.flatMap((s): Swatch[] => {
+    if (typeof s !== "object" || s === null) return [];
+    const { hex: rawHex, id: rawId, label, colSpan, rowSpan } = s as Record<string, unknown>;
+    // null is a blank swatch still awaiting a hex code; anything else must parse.
+    const hex = rawHex === null ? null : normalizeHex(String(rawHex ?? ""));
+    if (hex === null && rawHex !== null) return [];
+    return [
+      {
+        id: uniqueId(rawId, seenIds),
+        hex,
+        label: typeof label === "string" ? label : "",
+        colSpan: clamp(Number(colSpan) || 1, 1, MAX_COLUMNS),
+        rowSpan: clamp(Number(rowSpan) || 1, 1, MAX_ROW_SPAN),
+      },
+    ];
+  });
+}
+
+function uniqueId(raw: unknown, seenIds: Set<string>): string {
+  const id = typeof raw === "string" && !seenIds.has(raw) ? raw : crypto.randomUUID();
+  seenIds.add(id);
+  return id;
+}
+
+function parseNode(data: unknown, seenIds: Set<string>, depth = 0): LayoutNode | null {
+  if (typeof data !== "object" || data === null || depth > MAX_DEPTH) return null;
+  const node = data as Record<string, unknown>;
+
+  if (Array.isArray(node.children)) {
+    return {
+      kind: "split",
+      id: uniqueId(node.id, seenIds),
+      direction: node.direction === "row" ? "row" : "column",
+      children: node.children.flatMap((c) => parseNode(c, seenIds, depth + 1) ?? []),
+    };
+  }
+
+  if (!Array.isArray(node.swatches)) return null;
+  return {
+    kind: "group",
+    id: uniqueId(node.id, seenIds),
+    name: typeof node.name === "string" ? node.name : "Untitled group",
+    columns: clamp(Number(node.columns) || 4, MIN_COLUMNS, MAX_COLUMNS),
+    swatches: parseSwatches(node.swatches, seenIds),
+  };
 }
 
 /**
  * Turn untrusted data (from storage or an imported file) into a valid palette,
  * or null if it doesn't look like one. Bad swatches are dropped, numbers clamped.
+ * Version 1 files (one grid, no groups) become a palette with a single group.
  */
 export function parsePalette(data: unknown): Palette | null {
   if (typeof data !== "object" || data === null) return null;
-  const { name, columns, swatches } = data as Record<string, unknown>;
-  if (!Array.isArray(swatches)) return null;
+  const { name, columns, swatches, layout } = data as Record<string, unknown>;
   const seenIds = new Set<string>();
+
+  const parsed =
+    layout === undefined && Array.isArray(swatches)
+      ? parseNode({ name: "Group 1", columns, swatches }, seenIds)
+      : parseNode(layout, seenIds);
+  const tidy = parsed && normalize(parsed);
+  if (!tidy) return null;
 
   return {
     name: typeof name === "string" ? name : DEFAULT_PALETTE.name,
-    columns: clamp(Number(columns) || 4, MIN_COLUMNS, MAX_COLUMNS),
-    swatches: swatches.flatMap((s): Swatch[] => {
-      if (typeof s !== "object" || s === null) return [];
-      // null is a blank swatch still awaiting a hex code; anything else must parse.
-      const hex = s.hex === null ? null : normalizeHex(String(s.hex ?? ""));
-      if (hex === null && s.hex !== null) return [];
-      const id =
-        typeof s.id === "string" && !seenIds.has(s.id) ? s.id : crypto.randomUUID();
-      seenIds.add(id);
-      return [
-        {
-          id,
-          hex,
-          label: typeof s.label === "string" ? s.label : "",
-          colSpan: clamp(Number(s.colSpan) || 1, 1, MAX_COLUMNS),
-          rowSpan: clamp(Number(s.rowSpan) || 1, 1, MAX_ROW_SPAN),
-        },
-      ];
-    }),
+    layout: tidy,
+  };
+}
+
+function exportNode(node: LayoutNode): unknown {
+  if (node.kind === "split") {
+    return {
+      kind: "split",
+      direction: node.direction,
+      children: node.children.map(exportNode),
+    };
+  }
+  return {
+    kind: "group",
+    name: node.name,
+    columns: node.columns,
+    swatches: node.swatches.map(({ hex, label, colSpan, rowSpan }) => ({
+      hex,
+      label,
+      colSpan,
+      rowSpan,
+    })),
   };
 }
 
 /** The export file: the palette minus internal ids, plus a format version. */
 export function serializePalette(palette: Palette): string {
   return JSON.stringify(
-    {
-      version: EXPORT_VERSION,
-      name: palette.name,
-      columns: palette.columns,
-      swatches: palette.swatches.map(({ hex, label, colSpan, rowSpan }) => ({
-        hex,
-        label,
-        colSpan,
-        rowSpan,
-      })),
-    },
+    { version: EXPORT_VERSION, name: palette.name, layout: exportNode(palette.layout) },
     null,
     2,
   );
