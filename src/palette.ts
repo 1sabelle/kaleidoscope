@@ -46,6 +46,8 @@ export type Action =
   // null clears that part of the size, so it follows the layout again
   | { type: "resizeGroup"; groupId: string; box: { [K in keyof GroupBox]?: number | null } }
   | { type: "resetSizes" }
+  | { type: "setGroupFill"; groupId: string; fill: string | null } // null: theme's shading
+  | { type: "clearGroupFills" }
   | { type: "add"; groupId: string; hexes: string[] }
   | { type: "addBlank"; groupId: string; id: string }
   | { type: "swap"; id: string; withId: string }
@@ -152,6 +154,14 @@ function layoutReducer(layout: LayoutNode, action: Action): LayoutNode {
         offsetX: undefined,
         offsetY: undefined,
       }));
+    case "setGroupFill":
+      return mapGroups(layout, (g) =>
+        g.id === action.groupId ? { ...g, fill: action.fill ?? undefined } : g,
+      );
+    case "clearGroupFills":
+      return groupsOf(layout).some((g) => g.fill)
+        ? mapGroups(layout, (g) => ({ ...g, fill: undefined }))
+        : layout;
     case "add":
       return editSwatches(layout, action.groupId, (swatches) => [
         ...swatches,
@@ -257,6 +267,7 @@ function parseNode(data: unknown, seenIds: Set<string>, depth = 0): LayoutNode |
     height: boxValue("height", node.height),
     offsetX: boxValue("offsetX", node.offsetX) || undefined,
     offsetY: boxValue("offsetY", node.offsetY) || undefined,
+    fill: typeof node.fill === "string" ? (normalizeHex(node.fill) ?? undefined) : undefined,
   };
 }
 
@@ -299,6 +310,7 @@ function exportNode(node: LayoutNode): unknown {
     height: node.height,
     offsetX: node.offsetX,
     offsetY: node.offsetY,
+    fill: node.fill,
     swatches: node.swatches.map(({ hex, label, colSpan, rowSpan }) => ({
       hex,
       label,

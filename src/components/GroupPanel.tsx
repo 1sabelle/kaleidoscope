@@ -2,10 +2,12 @@ import { useCallback, useRef, useState } from "react";
 import type { CSSProperties, Dispatch, KeyboardEvent, PointerEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { SortableContext } from "@dnd-kit/sortable";
+import { ColourSetting } from "./ColourSetting";
 import { SwatchTile } from "./SwatchTile";
 import type { CellSize } from "./SwatchTile";
 import type { Group, GroupBox } from "../types";
 import type { Side } from "../layout";
+import { inkFor, renderedColour } from "../theme";
 import { MAX_COLUMNS, MIN_COLUMNS, MIN_GROUP_HEIGHT, MIN_GROUP_WIDTH } from "../palette";
 import type { Action } from "../palette";
 
@@ -14,7 +16,6 @@ export type DropZone = Side | "merge";
 
 type Props = {
   group: Group;
-  number: number; // position in reading order, shown as "No. 01"
   canRemove: boolean;
   focusId: string | null;
   dropZone: DropZone | null;
@@ -94,7 +95,6 @@ function maxWidth(panel: HTMLElement) {
 
 export function GroupPanel({
   group,
-  number,
   canRemove,
   focusId,
   dropZone,
@@ -239,8 +239,9 @@ export function GroupPanel({
     <section
       ref={setDropRef}
       className={className}
-      style={{ viewTransitionName: `group-${groupId}` }}
+      style={{ viewTransitionName: `group-${groupId}`, background: group.fill }}
       data-group-id={groupId}
+      data-ink={group.fill ? inkFor(group.fill) : undefined}
       onPointerDown={onActivate}
       onFocus={onActivate}
       aria-label={group.name || "Untitled group"}
@@ -265,9 +266,13 @@ export function GroupPanel({
           </svg>
         </button>
 
-        <span className="group-number" aria-hidden="true">
-          No. {String(number).padStart(2, "0")}
-        </span>
+        <ColourSetting
+          label={group.name || "Group"}
+          value={group.fill}
+          readCurrent={() => renderedColour(`section.group[data-group-id="${groupId}"]`)}
+          onChange={(fill) => dispatch({ type: "setGroupFill", groupId, fill })}
+          className="group-colour"
+        />
 
         <input
           className="group-name"

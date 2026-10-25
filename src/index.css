@@ -66,6 +66,37 @@
   color-scheme: dark;
 }
 
+/* Custom colours carry which ink reads on them: "dark" text on a light colour,
+   "light" text on a dark one. The background sets --bg inline on <html> (see
+   src/theme.ts); a group with its own colour gets it on its box. These come
+   last so they win over the theme. Borders are a tint of the ink, so they
+   suit any colour. */
+:root[data-ink="dark"],
+.group[data-ink="dark"] {
+  --surface: #ffffff;
+  --text: #18181b;
+  --muted: color-mix(in srgb, #18181b 62%, transparent);
+  --border: color-mix(in srgb, #18181b 14%, transparent);
+  --rule: #18181b;
+  --accent: #18181b;
+  --accent-ink: #ffffff;
+  --danger: #dc2626;
+  color-scheme: light;
+}
+
+:root[data-ink="light"],
+.group[data-ink="light"] {
+  --surface: #1c1c1f;
+  --text: #f4f4f5;
+  --muted: color-mix(in srgb, #f4f4f5 62%, transparent);
+  --border: color-mix(in srgb, #f4f4f5 16%, transparent);
+  --rule: #f4f4f5;
+  --accent: #f4f4f5;
+  --accent-ink: #18181b;
+  --danger: #f87171;
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -89,6 +120,7 @@ button {
 /* ---------- Layout ---------- */
 
 .app {
+  position: relative;
   padding: 32px 32px 64px;
 }
 
@@ -241,7 +273,7 @@ button {
   transition: color 0.15s;
 }
 
-.text-btn + .text-btn::before {
+.text-actions > * + *::before {
   content: "|";
   display: inline-block; /* keeps an underline on the button off it */
   margin: 0 10px;
@@ -255,6 +287,108 @@ button {
 .text-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* A round colour swatch (a group's colour, or the page background in the
+   corner) that opens a picker below it. */
+.colour-setting {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.colour-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+  transition: box-shadow 0.15s;
+}
+
+.colour-swatch:hover,
+.colour-swatch[aria-expanded="true"] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.colour-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.group-colour {
+  margin: 0 4px 0 2px;
+}
+
+/* The page background's swatch sits in the top-right corner of the page. */
+.background-colour {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 40;
+}
+
+.background-colour .colour-swatch {
+  width: 22px;
+  height: 22px;
+}
+
+.colour-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 10px);
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--rule), var(--shadow-print);
+}
+
+.colour-popover-left {
+  left: 0;
+}
+
+.colour-popover-right {
+  right: 0;
+}
+
+.colour-popover .react-colorful {
+  width: 200px;
+  height: 180px;
+}
+
+.colour-popover-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.colour-hex {
+  width: 0;
+  flex: 1;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--shade);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+.colour-hex:focus {
+  outline: 2px solid var(--accent);
+}
+
+.text-btn:disabled {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: default;
 }
 
 /* Auto | Light | Dark: the unchosen ones are muted, the chosen one underlined. */
@@ -369,11 +503,18 @@ button {
   min-width: 0;
   padding: 14px;
   border-radius: var(--radius);
-  background: var(--shade);
+  background: var(--shade); /* or the group's own colour, set inline */
+  color: var(--text); /* picks up the group's ink set, if its colour has one */
   display: flex;
   flex-direction: column;
   container-type: inline-size;
   transition: opacity 0.15s;
+}
+
+/* Groups are each their own stacking context (container queries), so one
+   with a picker open is lifted above its neighbours for the picker to show. */
+.group:has(.colour-popover, .picker-popover) {
+  z-index: 15;
 }
 
 .group.is-dragging {
@@ -543,14 +684,6 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
-.group-number {
-  flex: none;
-  color: var(--muted);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-variant-numeric: tabular-nums;
-}
 
 .group-grip,
 .group-remove {

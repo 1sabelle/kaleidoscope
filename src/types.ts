@@ -24,6 +24,7 @@ export type Group = GroupBox & {
   name: string;
   columns: number; // grid width; rows grow automatically
   swatches: Swatch[];
+  fill?: string; // box colour as "#rrggbb"; the theme's shading if unset
 };
 
 /** Lays its children out side by side ("row") or stacked ("column"). */

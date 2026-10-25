@@ -28,9 +28,28 @@ function luminance(hex: string): number {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
+/** Whether dark text reads better than light text on top of `hex`. */
+export function isLight(hex: string): boolean {
+  return luminance(hex) > 0.179;
+}
+
 /** Black or white, whichever reads better on top of `hex` (WCAG contrast). */
 export function textColorFor(hex: string): string {
-  return luminance(hex) > 0.179 ? "#111111" : "#ffffff";
+  return isLight(hex) ? "#111111" : "#ffffff";
+}
+
+/**
+ * A computed CSS colour ("rgb(246, 246, 244)", or "color(srgb 0.96 0.96 0.95)"
+ * as browsers report color-mix() results) as "#rrggbb", or null.
+ */
+export function cssColorToHex(css: string): string | null {
+  const rgb = css.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/);
+  const srgb = css.match(/^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+  const channels = rgb
+    ? rgb.slice(1, 4).map(Number)
+    : srgb?.slice(1, 4).map((c) => Number(c) * 255);
+  if (!channels) return null;
+  return `#${channels.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function hslToHex(h: number, s: number, l: number): string {

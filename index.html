@@ -12,10 +12,25 @@
     />
     <title>Kaleidoscope</title>
     <script>
-      // Apply a saved light/dark choice before first paint (see src/theme.ts).
+      // Apply the saved theme and custom background before first paint, as
+      // applyAppearance() in src/theme.ts does (same luminance test as isLight()).
       try {
+        const root = document.documentElement;
         const theme = localStorage.getItem("kaleidoscope:theme");
-        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+        if (theme === "light" || theme === "dark") root.dataset.theme = theme;
+        const colours = JSON.parse(localStorage.getItem("kaleidoscope:colours") || "{}");
+        const isLight = (hex) => {
+          const [r, g, b] = [1, 3, 5].map((i) => {
+            const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+            return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179;
+        };
+        const hex = colours.background;
+        if (/^#[0-9a-f]{6}$/.test(hex)) {
+          root.style.setProperty("--bg", hex);
+          root.dataset.ink = isLight(hex) ? "dark" : "light";
+        }
       } catch {}
     </script>
   </head>

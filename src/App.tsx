@@ -21,13 +21,14 @@ import type {
   DragStartEvent,
   KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
+import { ColourSetting } from "./components/ColourSetting";
 import { GroupPanel } from "./components/GroupPanel";
 import type { DropZone } from "./components/GroupPanel";
 import { parsePalette, serializePalette, usePalette } from "./palette";
 import { groupsOf, isFixed, layoutWeight } from "./layout";
 import type { LayoutNode } from "./types";
 import { parseHexList, textColorFor } from "./color";
-import { useTheme } from "./theme";
+import { renderedColour, useAppearance } from "./theme";
 import type { Theme } from "./theme";
 
 type Point = { x: number; y: number };
@@ -189,7 +190,13 @@ type ActiveDrag = { type: "swatch" | "group"; id: string };
 
 export default function App() {
   const [palette, dispatch] = usePalette();
-  const [theme, setTheme] = useTheme();
+  const { theme, colours, setTheme: applyTheme, setColour } = useAppearance();
+
+  /** Picking a theme goes back to its own colours: background and every group. */
+  function setTheme(next: Theme) {
+    applyTheme(next);
+    dispatch({ type: "clearGroupFills" });
+  }
   const [focusId, setFocusId] = useState<string | null>(null);
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [groupDrop, setGroupDrop] = useState<{ groupId: string; zone: DropZone } | null>(null);
@@ -345,7 +352,6 @@ export default function App() {
       <div key={node.id} className={`layout-cell${fixed}${tall}`} style={style}>
         <GroupPanel
           group={node}
-          number={groups.indexOf(node) + 1}
           canRemove={groups.length > 1}
           focusId={focusId}
           dropZone={groupDrop?.groupId === node.id ? groupDrop.zone : null}
@@ -366,6 +372,15 @@ export default function App() {
 
   return (
     <div className="app">
+      <ColourSetting
+        label="Background"
+        value={colours.background}
+        readCurrent={() => renderedColour("body")}
+        onChange={(hex) => setColour("background", hex)}
+        align="right"
+        className="background-colour"
+      />
+
       <header className="toolbar">
         <div className="masthead">
           <p className="kicker">Kaleidoscope · Palette</p>
