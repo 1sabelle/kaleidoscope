@@ -1,4 +1,4 @@
-/* Editorial: a serif for names, mono for everything a tool would print, on
+/* Editorial: a serif for names, a plain sans for the controls, on
    neutral greys. The accent (focus, drop targets) is the ink colour itself. */
 :root {
   --bg: #f6f6f4;
@@ -6,6 +6,7 @@
   --text: #18181b;
   --muted: #71717a;
   --border: #e4e4e7; /* hairline */
+  --shade: color-mix(in srgb, var(--text) 4%, var(--bg)); /* a light fill instead of an outline */
   --rule: #18181b; /* strong rule, same as text */
   --accent: #18181b;
   --accent-ink: #ffffff;
@@ -18,10 +19,11 @@
   --shadow-print: 5px 5px 0 color-mix(in srgb, var(--text) 16%, transparent);
 
   --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-ui: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace; /* hex codes */
 
   color-scheme: light dark;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 13px;
   color: var(--text);
   background: var(--bg);
@@ -360,9 +362,8 @@ button {
   flex: 1;
   min-width: 0;
   padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  border-radius: var(--radius);
+  background: var(--shade);
   display: flex;
   flex-direction: column;
   container-type: inline-size;
@@ -622,13 +623,20 @@ button {
 }
 
 .group .stepper .btn {
-  height: 28px;
-  min-width: 28px;
-  border-color: var(--border);
+  width: 26px;
+  height: 26px;
+  min-width: 0;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  font-size: 14px;
+  line-height: 1;
 }
 
+/* Soft: hover just deepens the fill instead of inverting like other buttons. */
 .group .stepper .btn:hover:not(:disabled) {
-  border-color: var(--text);
+  background: color-mix(in srgb, var(--text) 13%, transparent);
+  color: var(--text);
 }
 
 /* Narrow groups drop the "Columns" label; the stepper keeps its title. */
