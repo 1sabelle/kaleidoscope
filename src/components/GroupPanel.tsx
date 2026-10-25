@@ -49,13 +49,46 @@ function pinAllWidths(dispatch: Dispatch<Action>) {
 
 /**
  * Drag one edge of a span by `delta`. The trailing edge (right/bottom) just
- * grows the size. The leading edge (left/top) keeps the far edge still, trading
- * size against the offset in front, so it can't push into whatever is before it.
+ * grows the size, up to `max`. The leading edge (left/top) keeps the far edge
+ * still, trading size against the offset in front, so it can't push into
+ * whatever is before it.
  */
-function dragEdge(size: number, offset: number, delta: number, leading: boolean, min: number) {
-  if (!leading) return { size: Math.max(min, size + delta), offset };
+function dragEdge(
+  size: number,
+  offset: number,
+  delta: number,
+  leading: boolean,
+  min: number,
+  max = Infinity,
+) {
+  if (!leading) return { size: Math.max(min, Math.min(size + delta, max)), offset };
   const next = Math.min(Math.max(min, size - delta), size + offset);
   return { size: next, offset: offset + size - next };
+}
+
+/**
+ * The widest a group can get without anything leaving the screen: up to the
+ * page's right margin, minus whatever sits to its right in the same row(s),
+ * since growing pushes those along.
+ */
+function maxWidth(panel: HTMLElement) {
+  const app = panel.closest<HTMLElement>(".app");
+  if (!app) return Infinity;
+  const right = app.getBoundingClientRect().right - parseFloat(getComputedStyle(app).paddingRight);
+  let trailing = 0;
+  let el: Element = panel.parentElement!; // the layout cell
+  while (el.parentElement?.classList.contains("split")) {
+    const parent = el.parentElement;
+    if (parent.classList.contains("split-row")) {
+      const gap = parseFloat(getComputedStyle(parent).columnGap) || 0;
+      for (let next = el.nextElementSibling; next; next = next.nextElementSibling) {
+        trailing += gap + next.getBoundingClientRect().width;
+        trailing += parseFloat(getComputedStyle(next).marginLeft) || 0;
+      }
+    }
+    el = parent;
+  }
+  return Math.max(MIN_GROUP_WIDTH, right - panel.getBoundingClientRect().left - trailing);
 }
 
 export function GroupPanel({
@@ -128,13 +161,21 @@ export function GroupPanel({
     const horizontal = handle.includes("e") || handle.includes("w");
     const vertical = handle.includes("n") || handle.includes("s");
     const minH = minHeight(panel);
+    const maxW = maxWidth(panel);
     const startX = e.clientX;
     const startY = e.clientY;
     if (horizontal) pinAllWidths(dispatch);
 
     const resize = (dx: number, dy: number) => {
       const box: GroupBox = {};
-      const x = dragEdge(rect.width, group.offsetX ?? 0, dx, handle.includes("w"), MIN_GROUP_WIDTH);
+      const x = dragEdge(
+        rect.width,
+        group.offsetX ?? 0,
+        dx,
+        handle.includes("w"),
+        MIN_GROUP_WIDTH,
+        maxW,
+      );
       const y = dragEdge(rect.height, group.offsetY ?? 0, dy, handle.includes("n"), minH);
       if (horizontal) Object.assign(box, { width: x.size, offsetX: x.offset });
       if (vertical) Object.assign(box, { height: y.size, offsetY: y.offset });
@@ -172,7 +213,8 @@ export function GroupPanel({
     const rect = panel.getBoundingClientRect();
     if (step[0]) {
       pinAllWidths(dispatch);
-      dispatch({ type: "resizeGroup", groupId, box: { width: rect.width + step[0] } });
+      const width = Math.min(rect.width + step[0], maxWidth(panel));
+      dispatch({ type: "resizeGroup", groupId, box: { width } });
     } else {
       const height = Math.max(minHeight(panel), rect.height + step[1]);
       dispatch({ type: "resizeGroup", groupId, box: { height } });

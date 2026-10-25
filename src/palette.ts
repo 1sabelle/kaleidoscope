@@ -114,7 +114,9 @@ function layoutReducer(layout: LayoutNode, action: Action): LayoutNode {
       if (!group || action.groupId === action.targetId) return layout;
       const rest = removeGroup(layout, action.groupId);
       if (!rest) return layout;
-      return normalize(insertBeside(rest, action.targetId, group, action.side)) ?? layout;
+      // Space it had in front of it belonged to its old spot.
+      const moved = { ...group, offsetX: undefined, offsetY: undefined };
+      return normalize(insertBeside(rest, action.targetId, moved, action.side)) ?? layout;
     }
     case "mergeGroup": {
       // The group dropped onto keeps its name, size and place; the dragged

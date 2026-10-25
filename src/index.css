@@ -183,9 +183,11 @@ button {
   flex-direction: column;
 }
 
-/* Every group sized by hand: the layout is exactly as wide as they add up to. */
+/* Every group sized by hand: the layout is exactly as wide as they add up to,
+   but never wider than the screen. */
 .layout.is-fixed {
   width: max-content;
+  max-width: 100%;
 }
 
 .split-row > * {
@@ -193,8 +195,10 @@ button {
   min-width: 0;
 }
 
+/* Hand-picked widths are kept while they fit; if a row of them is too wide for
+   the screen (after a move, or a smaller window) they shrink to fit instead. */
 .split-row > .is-fixed {
-  flex: none;
+  flex: 0 1 auto;
 }
 
 .layout > .is-fixed,
@@ -204,6 +208,7 @@ button {
 
 .layout-cell.is-fixed {
   width: var(--width);
+  max-width: 100%;
 }
 
 .layout-cell {
