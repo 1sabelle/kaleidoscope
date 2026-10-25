@@ -26,6 +26,7 @@ import { GroupPanel } from "./components/GroupPanel";
 import { PaletteSwitcher } from "./components/PaletteSwitcher";
 import type { DropZone } from "./components/GroupPanel";
 import { parsePalette, serializePalette, useLibrary } from "./palette";
+import { shareLink, takeSharedPalette } from "./share";
 import { groupsOf, isFixed, layoutWeight } from "./layout";
 import type { LayoutNode } from "./types";
 import { parseHexList, textColorFor } from "./color";
@@ -191,6 +192,7 @@ type ActiveDrag = { type: "swatch" | "group"; id: string };
 
 export default function App() {
   const { palette, library, dispatch } = useLibrary();
+  const [shared, setShared] = useState(false); // briefly true after copying a share link
   const { theme, colours, setTheme: applyTheme, setColour } = useAppearance();
 
   /** Picking a theme goes back to its own colours: background and every group. */
@@ -270,6 +272,34 @@ export default function App() {
     // Imports are saved as a new palette alongside the others, and opened.
     dispatch({ type: "addPalette", id: crypto.randomUUID(), palette: imported });
   }
+
+  async function sharePalette() {
+    const link = await shareLink(palette);
+    try {
+      await navigator.clipboard.writeText(link);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch {
+      // No clipboard access: show the link so it can be copied by hand.
+      prompt("Copy this link to share the palette:", link);
+    }
+  }
+
+  // Opening a share link adds its palette to the library and opens it. Also
+  // checked when the hash changes, e.g. a link pasted into this tab.
+  useEffect(() => {
+    async function receive() {
+      const incoming = await takeSharedPalette();
+      if (incoming === "unreadable") {
+        setImportError("That share link is damaged or incomplete, so the palette couldn’t be opened.");
+      } else if (incoming) {
+        dispatch({ type: "addPalette", id: crypto.randomUUID(), palette: incoming });
+      }
+    }
+    receive();
+    window.addEventListener("hashchange", receive);
+    return () => window.removeEventListener("hashchange", receive);
+  }, [dispatch]);
 
   function handleDragStart({ active }: DragStartEvent) {
     const data = active.data.current;
@@ -440,6 +470,14 @@ export default function App() {
             </button>
             <button type="button" className="text-btn" onClick={exportPalette}>
               Export
+            </button>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={sharePalette}
+              title="Copy a link that opens this palette"
+            >
+              {shared ? "Link copied" : "Share"}
             </button>
           </div>
           <input
