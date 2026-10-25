@@ -342,6 +342,7 @@ export default function App() {
       <div key={node.id} className={`layout-cell${fixed}${tall}`} style={style}>
         <GroupPanel
           group={node}
+          number={groups.indexOf(node) + 1}
           canRemove={groups.length > 1}
           focusId={focusId}
           dropZone={groupDrop?.groupId === node.id ? groupDrop.zone : null}
@@ -363,13 +364,20 @@ export default function App() {
   return (
     <div className="app">
       <header className="toolbar">
-        <input
-          className="palette-name"
-          value={palette.name}
-          onChange={(e) => dispatch({ type: "rename", name: e.target.value })}
-          aria-label="Palette name"
-          spellCheck={false}
-        />
+        <div className="masthead">
+          <p className="kicker">Kaleidoscope · Palette</p>
+          <input
+            className="palette-name"
+            value={palette.name}
+            onChange={(e) => dispatch({ type: "rename", name: e.target.value })}
+            aria-label="Palette name"
+            spellCheck={false}
+          />
+          <p className="palette-meta">
+            {groups.length} {groups.length === 1 ? "group" : "groups"} · {swatchCount}{" "}
+            {swatchCount === 1 ? "colour" : "colours"}
+          </p>
+        </div>
 
         <div className="controls">
           {groups.some((g) => g.width ?? g.height ?? g.offsetX ?? g.offsetY) && (

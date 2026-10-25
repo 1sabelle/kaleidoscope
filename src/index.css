@@ -1,18 +1,27 @@
+/* Editorial: a serif for names, mono for everything a tool would print, on
+   neutral greys. The accent (focus, drop targets) is the ink colour itself. */
 :root {
   --bg: #f6f6f4;
   --surface: #ffffff;
   --text: #18181b;
   --muted: #71717a;
-  --border: #e4e4e7;
+  --border: #e4e4e7; /* hairline */
+  --rule: #18181b; /* strong rule, same as text */
   --accent: #18181b;
   --accent-ink: #ffffff;
   --danger: #dc2626;
-  --radius: 14px;
+  --radius: 3px;
+  --radius-sm: 2px;
   --gap: 12px;
   --group-gap: 20px;
   --row-height: 160px;
+  --shadow-print: 5px 5px 0 color-mix(in srgb, var(--text) 16%, transparent);
 
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  font-family: var(--font-mono);
+  font-size: 13px;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -25,8 +34,10 @@
     --text: #f4f4f5;
     --muted: #a1a1aa;
     --border: #2e2e33;
+    --rule: #f4f4f5;
     --accent: #f4f4f5;
     --accent-ink: #18181b;
+    --danger: #f87171;
   }
 }
 
@@ -60,57 +71,91 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.kicker,
+.palette-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.palette-meta {
+  font-variant-numeric: tabular-nums;
 }
 
 .palette-name {
-  flex: 1 1 240px;
+  display: block;
+  width: 100%;
   min-width: 0;
+  margin: 2px 0 6px;
+  padding: 0;
   border: none;
+  border-radius: 0;
   background: transparent;
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  padding: 4px 8px;
-  margin-left: -8px;
-  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 60px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
 }
 
 .palette-name:hover,
 .palette-name:focus {
-  background: var(--surface);
   outline: none;
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 
 .controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* ---------- Controls ---------- */
 
 .btn {
-  height: 38px;
-  min-width: 38px;
+  height: 34px;
+  min-width: 34px;
   padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  font-size: 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 11px;
   font-weight: 500;
-  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
+/* Hover inverts, like a stamped label. */
 .btn:hover:not(:disabled) {
-  border-color: var(--muted);
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: default;
 }
 
@@ -122,25 +167,28 @@ button {
 
 .stepper .btn {
   padding: 0;
-  font-size: 18px;
+  font-size: 15px;
+  letter-spacing: 0;
 }
 
 .stepper-label {
-  font-size: 14px;
-  color: var(--muted);
   margin-right: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .stepper-value {
-  min-width: 24px;
+  min-width: 22px;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .file-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .notice {
@@ -151,9 +199,9 @@ button {
   margin: -8px 0 20px;
   padding: 10px 14px;
   border: 1px solid var(--danger);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--danger);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .notice button {
@@ -239,9 +287,9 @@ button {
   position: relative;
   flex: 1;
   min-width: 0;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) + 6px);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   display: flex;
   flex-direction: column;
@@ -301,8 +349,8 @@ button {
 .group-handle::after {
   content: "";
   position: absolute;
-  border-radius: 2px;
-  background: var(--muted);
+  border-radius: 1px;
+  background: var(--accent);
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -338,7 +386,7 @@ button {
   --inset: calc(var(--group-gap) / 2 - 7px);
   width: 12px;
   height: 12px;
-  border: 0 solid var(--muted);
+  border: 0 solid var(--accent);
   border-radius: 0;
   background: transparent;
 }
@@ -347,28 +395,28 @@ button {
   top: var(--inset);
   right: var(--inset);
   border-width: 3px 3px 0 0;
-  border-top-right-radius: 10px;
+  border-top-right-radius: 4px;
 }
 
 .group-handle-nw::after {
   top: var(--inset);
   left: var(--inset);
   border-width: 3px 0 0 3px;
-  border-top-left-radius: 10px;
+  border-top-left-radius: 4px;
 }
 
 .group-handle-se::after {
   bottom: var(--inset);
   right: var(--inset);
   border-width: 0 3px 3px 0;
-  border-bottom-right-radius: 10px;
+  border-bottom-right-radius: 4px;
 }
 
 .group-handle-sw::after {
   bottom: var(--inset);
   left: var(--inset);
   border-width: 0 0 3px 3px;
-  border-bottom-left-radius: 10px;
+  border-bottom-left-radius: 4px;
 }
 
 .group-handle:hover::after,
@@ -381,8 +429,8 @@ button {
 }
 
 .group.is-resizing {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .group-size {
@@ -391,12 +439,12 @@ button {
   left: 50%;
   z-index: 6;
   transform: translate(-50%, -50%);
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--text);
-  color: var(--bg);
-  font-size: 13px;
-  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
@@ -411,7 +459,18 @@ button {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.group-number {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
 }
 
 .group-grip,
@@ -423,7 +482,7 @@ button {
   height: 30px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
   transition: background 0.15s, color 0.15s;
@@ -441,7 +500,7 @@ button {
 }
 
 .group-grip:focus-visible {
-  outline: 2px solid var(--text);
+  outline: 2px solid var(--accent);
 }
 
 .group-grip svg {
@@ -462,20 +521,21 @@ button {
 .group-name {
   flex: 1 1 120px;
   min-width: 0;
+  padding: 0 6px;
   border: none;
+  border-radius: 0;
   background: transparent;
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  padding: 4px 8px;
-  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.15;
   text-overflow: ellipsis;
 }
 
 .group-name:hover,
 .group-name:focus {
-  background: var(--bg);
   outline: none;
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 
 .group-name::placeholder {
@@ -490,14 +550,13 @@ button {
 }
 
 .group .stepper .btn {
-  height: 30px;
-  min-width: 30px;
-  border-radius: 8px;
-  font-size: 16px;
+  height: 28px;
+  min-width: 28px;
+  border-color: var(--border);
 }
 
-.group .stepper-label {
-  font-size: 13px;
+.group .stepper .btn:hover:not(:disabled) {
+  border-color: var(--text);
 }
 
 /* Narrow groups drop the "Columns" label; the stepper keeps its title. */
@@ -512,8 +571,8 @@ button {
 .drop-indicator {
   position: absolute;
   z-index: 20;
-  border-radius: 4px;
-  background: var(--text);
+  border-radius: 1px;
+  background: var(--accent);
   pointer-events: none;
 }
 
@@ -552,18 +611,20 @@ button {
   display: grid;
   place-items: center;
   border-radius: inherit;
-  background: color-mix(in srgb, var(--text) 10%, transparent);
-  outline: 2px solid var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  outline: 2px solid var(--accent);
 }
 
 .drop-merge span {
   max-width: calc(100% - 24px);
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--text);
-  color: var(--bg);
-  font-size: 13px;
-  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -580,9 +641,9 @@ button {
   gap: 10px;
   max-width: 100%;
   padding: 6px 12px 6px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
-  box-shadow: 0 18px 40px rgb(0 0 0 / 0.25), 0 0 0 1px var(--border);
+  box-shadow: 0 0 0 1px var(--rule), var(--shadow-print);
   cursor: grabbing;
   transform: rotate(-1deg);
 }
@@ -590,8 +651,9 @@ button {
 .group-chip-name {
   min-width: 0;
   overflow: hidden;
-  font-size: 15px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -602,11 +664,11 @@ button {
 }
 
 .group-chip-swatches span {
-  width: 18px;
-  height: 18px;
-  margin-left: -5px;
-  border: 2px solid var(--surface);
-  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  margin-left: -4px;
+  border: 1.5px solid var(--surface);
+  border-radius: 1px;
 }
 
 .group-chip-swatches span.is-blank {
@@ -624,12 +686,13 @@ button {
 }
 
 .add-tile {
-  border: 2px dashed var(--border);
+  border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent);
   border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
-  font-size: 32px;
-  font-weight: 300;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 400;
   transition: border-color 0.15s, color 0.15s;
 }
 
@@ -664,8 +727,8 @@ button {
 }
 
 .swatch.is-resizing {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .swatch-meta {
@@ -683,7 +746,7 @@ button {
   color: var(--ink);
   padding: 2px 4px;
   margin-left: -4px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   text-overflow: ellipsis;
 }
 
@@ -694,8 +757,10 @@ button {
 }
 
 .swatch-label {
-  font-size: 15px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 1.1;
 }
 
 .swatch-label::placeholder {
@@ -710,10 +775,10 @@ button {
 }
 
 .swatch-hex {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   opacity: 0.8;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
 }
 
 .swatch-actions {
@@ -730,11 +795,11 @@ button {
 .icon-btn {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--ink) 14%, transparent);
   color: var(--ink);
 }
@@ -754,7 +819,7 @@ button {
   height: 16px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -769,7 +834,7 @@ button {
   height: 24px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink);
   cursor: nwse-resize;
@@ -811,10 +876,10 @@ button {
   left: 50%;
   transform: translate(-50%, -50%);
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--ink) 18%, transparent);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
@@ -824,7 +889,7 @@ button {
 .swatch.is-blank {
   --ink: var(--text);
   background: transparent;
-  border: 2px dashed var(--border);
+  border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent);
   transition: border-color 0.15s;
 }
 
@@ -850,7 +915,7 @@ button {
   padding: 6px 8px;
   margin-left: 0;
   background: transparent;
-  border: 2px dashed var(--border);
+  border: 1px dashed color-mix(in srgb, var(--muted) 55%, transparent);
   opacity: 1;
   transition: border-color 0.15s;
 }
@@ -886,7 +951,7 @@ button {
 }
 
 .swatch:focus-visible {
-  outline: 2px solid var(--text);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -895,14 +960,14 @@ button {
 }
 
 .swatch.is-drop-target {
-  outline: 2px solid var(--text);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
 .swatch-overlay {
   height: 100%;
   cursor: grabbing;
-  box-shadow: 0 18px 40px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow-print);
   transform: rotate(-1.5deg) scale(1.03);
 }
 
@@ -916,9 +981,17 @@ button {
 }
 
 .empty-hint {
-  margin: 20px 0 0;
+  margin: 24px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-style: italic;
+}
+
+.empty-hint strong {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 400;
 }
 
 .picker-popover {
@@ -927,9 +1000,9 @@ button {
   top: 46px;
   right: 10px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18), 0 0 0 1px var(--border);
+  box-shadow: 0 0 0 1px var(--rule), var(--shadow-print);
 }
 
 .picker-popover .react-colorful {
@@ -994,7 +1067,11 @@ button {
   }
 
   .palette-name {
-    font-size: 22px;
+    font-size: 38px;
+  }
+
+  .group-name {
+    font-size: 24px;
   }
 
   .swatch {
@@ -1012,7 +1089,6 @@ button {
   .icon-btn {
     width: 22px;
     height: 22px;
-    border-radius: 6px;
   }
 
   .icon-btn svg {
@@ -1021,7 +1097,7 @@ button {
   }
 
   .swatch-label {
-    font-size: 13px;
+    font-size: 16px;
   }
 
   .swatch-hex {

@@ -14,6 +14,7 @@ export type DropZone = Side | "merge";
 
 type Props = {
   group: Group;
+  number: number; // position in reading order, shown as "No. 01"
   canRemove: boolean;
   focusId: string | null;
   dropZone: DropZone | null;
@@ -93,6 +94,7 @@ function maxWidth(panel: HTMLElement) {
 
 export function GroupPanel({
   group,
+  number,
   canRemove,
   focusId,
   dropZone,
@@ -262,6 +264,10 @@ export function GroupPanel({
             <circle cx="15" cy="18" r="1.4" />
           </svg>
         </button>
+
+        <span className="group-number" aria-hidden="true">
+          No. {String(number).padStart(2, "0")}
+        </span>
 
         <input
           className="group-name"
