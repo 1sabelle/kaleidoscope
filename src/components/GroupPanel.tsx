@@ -1,12 +1,12 @@
-import { useCallback, useRef } from "react";
-import type { CSSProperties, Dispatch } from "react";
+import { useCallback, useRef, useState } from "react";
+import type { CSSProperties, Dispatch, KeyboardEvent, PointerEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { SortableContext } from "@dnd-kit/sortable";
 import { SwatchTile } from "./SwatchTile";
 import type { CellSize } from "./SwatchTile";
-import type { Group } from "../types";
+import type { Group, GroupBox } from "../types";
 import type { Side } from "../layout";
-import { MAX_COLUMNS, MIN_COLUMNS } from "../palette";
+import { MAX_COLUMNS, MIN_COLUMNS, MIN_GROUP_HEIGHT, MIN_GROUP_WIDTH } from "../palette";
 import type { Action } from "../palette";
 
 /** Where a dragged group would land on this one, if it's the current target. */
@@ -26,6 +26,38 @@ type Props = {
 // shuffling differently-sized tiles mid-drag makes the grid jump around.
 const noShuffle = () => null;
 
+// Arrow keys on the corner handle change the size by this much.
+const KEY_STEP = 20;
+// Rows of a group with a set height stretch to fill it, but no shorter than this.
+const MIN_ROW_HEIGHT = 64;
+
+/** Compass points: which edges a handle moves. */
+type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+const HANDLES: Handle[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
+/**
+ * Pin every group at the width it's showing right now. Done before any width
+ * change, so dragging one group's edge moves that edge only and nothing reflows.
+ */
+function pinAllWidths(dispatch: Dispatch<Action>) {
+  const panels = document.querySelectorAll<HTMLElement>("section.group[data-group-id]");
+  const widths = Object.fromEntries(
+    [...panels].map((el) => [el.dataset.groupId!, el.getBoundingClientRect().width]),
+  );
+  dispatch({ type: "pinWidths", widths });
+}
+
+/**
+ * Drag one edge of a span by `delta`. The trailing edge (right/bottom) just
+ * grows the size. The leading edge (left/top) keeps the far edge still, trading
+ * size against the offset in front, so it can't push into whatever is before it.
+ */
+function dragEdge(size: number, offset: number, delta: number, leading: boolean, min: number) {
+  if (!leading) return { size: Math.max(min, size + delta), offset };
+  const next = Math.min(Math.max(min, size - delta), size + offset);
+  return { size: next, offset: offset + size - next };
+}
+
 export function GroupPanel({
   group,
   canRemove,
@@ -36,6 +68,7 @@ export function GroupPanel({
   onActivate,
 }: Props) {
   const gridRef = useRef<HTMLDivElement>(null);
+  const [resizing, setResizing] = useState<string | null>(null); // "W × H" while dragging
   const { id: groupId, columns } = group;
   const data = { type: "group", groupId };
   // The header is what's picked up (so the floating copy is header-sized), but
@@ -60,10 +93,22 @@ export function GroupPanel({
     const gap = parseFloat(styles.columnGap) || 0;
     return {
       width: (grid.clientWidth - gap * (columns - 1)) / columns,
-      height: parseFloat(styles.gridAutoRows) || 160,
+      // Rows stretch when the group has a set height, so read the real size.
+      height: parseFloat(styles.gridTemplateRows) || parseFloat(styles.gridAutoRows) || 160,
       gap,
     };
   }, [columns]);
+
+  /** The shortest this group can be and still fit its rows at their minimum. */
+  function minHeight(panel: HTMLElement) {
+    const grid = gridRef.current;
+    if (!grid) return MIN_GROUP_HEIGHT;
+    const styles = getComputedStyle(grid);
+    const rows = styles.gridTemplateRows.split(" ").filter(Boolean).length || 1;
+    const gap = parseFloat(styles.rowGap) || 0;
+    const chrome = panel.getBoundingClientRect().height - grid.clientHeight;
+    return Math.max(MIN_GROUP_HEIGHT, chrome + rows * MIN_ROW_HEIGHT + (rows - 1) * gap);
+  }
 
   function removeGroup() {
     const count = group.swatches.length;
@@ -74,13 +119,84 @@ export function GroupPanel({
     dispatch({ type: "removeGroup", groupId });
   }
 
-  const className = ["group", isDragging && "is-dragging"].filter(Boolean).join(" ");
+  function startResize(handle: Handle, e: PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    const panel = target.parentElement!;
+    const rect = panel.getBoundingClientRect();
+    const horizontal = handle.includes("e") || handle.includes("w");
+    const vertical = handle.includes("n") || handle.includes("s");
+    const minH = minHeight(panel);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    if (horizontal) pinAllWidths(dispatch);
+
+    const resize = (dx: number, dy: number) => {
+      const box: GroupBox = {};
+      const x = dragEdge(rect.width, group.offsetX ?? 0, dx, handle.includes("w"), MIN_GROUP_WIDTH);
+      const y = dragEdge(rect.height, group.offsetY ?? 0, dy, handle.includes("n"), minH);
+      if (horizontal) Object.assign(box, { width: x.size, offsetX: x.offset });
+      if (vertical) Object.assign(box, { height: y.size, offsetY: y.offset });
+      dispatch({ type: "resizeGroup", groupId, box });
+      const w = horizontal ? x.size : rect.width;
+      const h = vertical ? y.size : rect.height;
+      setResizing(`${Math.round(w)} × ${Math.round(h)}`);
+    };
+    resize(0, 0);
+
+    const move = (ev: globalThis.PointerEvent) => resize(ev.clientX - startX, ev.clientY - startY);
+    const end = () => {
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", end);
+      target.removeEventListener("pointercancel", end);
+      setResizing(null);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", end);
+    target.addEventListener("pointercancel", end);
+  }
+
+  // Only the bottom-right corner is a keyboard stop (one per group, not eight):
+  // left/right change the width, up/down the height.
+  function resizeWithKeys(e: KeyboardEvent<HTMLDivElement>) {
+    const step = ({
+      ArrowLeft: [-KEY_STEP, 0],
+      ArrowRight: [KEY_STEP, 0],
+      ArrowUp: [0, -KEY_STEP],
+      ArrowDown: [0, KEY_STEP],
+    } as Record<string, [number, number]>)[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const panel = e.currentTarget.parentElement!;
+    const rect = panel.getBoundingClientRect();
+    if (step[0]) {
+      pinAllWidths(dispatch);
+      dispatch({ type: "resizeGroup", groupId, box: { width: rect.width + step[0] } });
+    } else {
+      const height = Math.max(minHeight(panel), rect.height + step[1]);
+      dispatch({ type: "resizeGroup", groupId, box: { height } });
+    }
+  }
+
+  /** Double-click: let the dimension(s) this handle controls follow the layout again. */
+  function resetHandle(handle: Handle) {
+    const box: { [K in keyof GroupBox]?: null } = {};
+    if (handle.includes("e") || handle.includes("w")) Object.assign(box, { width: null, offsetX: null });
+    if (handle.includes("n") || handle.includes("s")) Object.assign(box, { height: null, offsetY: null });
+    dispatch({ type: "resizeGroup", groupId, box });
+  }
+
+  const className = ["group", isDragging && "is-dragging", resizing && "is-resizing"]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <section
       ref={setDropRef}
       className={className}
       style={{ viewTransitionName: `group-${groupId}` }}
+      data-group-id={groupId}
       onPointerDown={onActivate}
       onFocus={onActivate}
       aria-label={group.name || "Untitled group"}
@@ -184,6 +300,29 @@ export function GroupPanel({
           </button>
         </div>
       </SortableContext>
+
+      {HANDLES.map((handle) => (
+        <div
+          key={handle}
+          className={`group-handle group-handle-${handle}`}
+          onPointerDown={(e) => startResize(handle, e)}
+          onDoubleClick={() => resetHandle(handle)}
+          title="Drag to resize · double-click to fit"
+          {...(handle === "se"
+            ? {
+                role: "slider",
+                tabIndex: 0,
+                "aria-label": `Resize ${group.name || "group"}. Arrow keys change width and height; double-click to fit.`,
+                "aria-valuetext": group.width || group.height
+                  ? `${group.width ?? "auto"} by ${group.height ?? "auto"} pixels`
+                  : "Automatic size",
+                onKeyDown: resizeWithKeys,
+              }
+            : { "aria-hidden": true })}
+        />
+      ))}
+
+      {resizing && <div className="group-size">{resizing}</div>}
 
       {dropZone && (
         <div className={`drop-indicator drop-${dropZone}`} aria-hidden="true">

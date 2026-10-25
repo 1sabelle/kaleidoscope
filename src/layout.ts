@@ -80,6 +80,7 @@ export function insertBeside(
 /**
  * How much horizontal room a node wants, in grid columns. Side-by-side groups
  * share width in proportion, so cells come out roughly the same size everywhere.
+ * (Groups with a set width just take that, whatever this says.)
  */
 export function layoutWeight(node: LayoutNode): number {
   if (node.kind === "group") return node.columns;
@@ -87,4 +88,12 @@ export function layoutWeight(node: LayoutNode): number {
   return node.direction === "row"
     ? weights.reduce((a, b) => a + b, 0)
     : Math.max(...weights);
+}
+
+/**
+ * Whether a node has a set width: a group resized by hand, or a split made only
+ * of those. Anything else stretches to share the space that's left.
+ */
+export function isFixed(node: LayoutNode): boolean {
+  return node.kind === "group" ? node.width !== undefined : node.children.every(isFixed);
 }

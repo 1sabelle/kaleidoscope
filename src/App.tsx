@@ -24,7 +24,7 @@ import type {
 import { GroupPanel } from "./components/GroupPanel";
 import type { DropZone } from "./components/GroupPanel";
 import { parsePalette, serializePalette, usePalette } from "./palette";
-import { groupsOf, layoutWeight } from "./layout";
+import { groupsOf, isFixed, layoutWeight } from "./layout";
 import type { LayoutNode } from "./types";
 import { parseHexList, textColorFor } from "./color";
 
@@ -318,16 +318,28 @@ export default function App() {
   }
 
   function renderNode(node: LayoutNode): ReactNode {
-    const style = { "--weight": layoutWeight(node) } as CSSProperties;
+    const fixed = isFixed(node) ? " is-fixed" : "";
     if (node.kind === "split") {
       return (
-        <div key={node.id} className={`split split-${node.direction}`} style={style}>
+        <div
+          key={node.id}
+          className={`split split-${node.direction}${fixed}`}
+          style={{ "--weight": layoutWeight(node) } as CSSProperties}
+        >
           {node.children.map(renderNode)}
         </div>
       );
     }
+    const style = {
+      "--weight": node.columns,
+      "--width": `${node.width}px`,
+      "--height": `${node.height}px`,
+      "--offset-x": `${node.offsetX ?? 0}px`,
+      "--offset-y": `${node.offsetY ?? 0}px`,
+    } as CSSProperties;
+    const tall = node.height !== undefined ? " has-height" : "";
     return (
-      <div key={node.id} className="layout-cell" style={style}>
+      <div key={node.id} className={`layout-cell${fixed}${tall}`} style={style}>
         <GroupPanel
           group={node}
           canRemove={groups.length > 1}
@@ -360,6 +372,16 @@ export default function App() {
         />
 
         <div className="controls">
+          {groups.some((g) => g.width ?? g.height ?? g.offsetX ?? g.offsetY) && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => dispatch({ type: "resetSizes" })}
+              title="Undo hand-picked group sizes so groups fill the screen again"
+            >
+              Fit to screen
+            </button>
+          )}
           <button type="button" className="btn" onClick={addGroup}>
             Add group
           </button>
@@ -403,7 +425,15 @@ export default function App() {
         onDragEnd={handleDragEnd}
         onDragCancel={endDrag}
       >
-        <main className={`layout${activeGroup ? " is-moving-group" : ""}`}>
+        <main
+          className={[
+            "layout",
+            isFixed(palette.layout) && "is-fixed",
+            activeGroup && "is-moving-group",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           {renderNode(palette.layout)}
         </main>
 

@@ -1,6 +1,6 @@
 # Kaleidoscope
 
-A simple palette builder. Paste hex codes, label colours, and arrange them in resizable grids, organised into named groups. Drag a group by its grip to place it beside, above or below another group, or drop it onto one to merge them.
+A simple palette builder. Paste hex codes, label colours, and arrange them in resizable grids, organised into named groups. Drag a group by its grip to place it beside, above or below another group, or drop it onto one to merge them. Resize a group from any edge or corner; double-click a handle (or press Fit to screen) to go back to automatic sizing.
 
 ```sh
 npm install

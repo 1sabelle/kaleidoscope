@@ -53,9 +53,7 @@ button {
 /* ---------- Layout ---------- */
 
 .app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 32px 32px 64px;
 }
 
 .toolbar {
@@ -177,16 +175,59 @@ button {
   flex-direction: column;
 }
 
-/* Side-by-side groups share the width in proportion to their column counts. */
+/* Side-by-side groups share the width in proportion to their column counts.
+   Groups resized by hand ("fixed") keep their width instead, and the layout
+   no longer has to fill the screen: it can end short of it or run past it. */
+.layout {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Every group sized by hand: the layout is exactly as wide as they add up to. */
+.layout.is-fixed {
+  width: max-content;
+}
+
 .split-row > * {
   flex: var(--weight) 1 0;
   min-width: 0;
+}
+
+.split-row > .is-fixed {
+  flex: none;
+}
+
+.layout > .is-fixed,
+.split-column > .is-fixed {
+  align-self: flex-start;
+}
+
+.layout-cell.is-fixed {
+  width: var(--width);
 }
 
 .layout-cell {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Space left in front of a group by dragging its left or top edge inwards. */
+  margin: var(--offset-y, 0) 0 0 var(--offset-x, 0);
+}
+
+/* A set height: the grid's rows stretch to fill it, and it never squeezes
+   the rows below their minimum (the group grows past it instead). */
+.layout-cell.has-height {
+  height: var(--height);
+  min-height: min-content;
+}
+
+.split-row > .has-height {
+  align-self: flex-start;
+}
+
+.has-height .grid {
+  flex: 1 1 0;
+  grid-auto-rows: minmax(64px, 1fr);
 }
 
 .group {
@@ -197,12 +238,167 @@ button {
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 6px);
   background: var(--surface);
+  display: flex;
+  flex-direction: column;
   container-type: inline-size;
   transition: opacity 0.15s;
 }
 
 .group.is-dragging {
   opacity: 0.4;
+}
+
+/* Resize handles on every edge and corner. Each sits in the half of the gap
+   next to its own group (overlapping the border a little), so two neighbours'
+   handles never collide. A small mark shows on hover. */
+.group-handle {
+  --reach: calc(var(--group-gap) / 2 + 4px);
+  --out: calc(var(--group-gap) / -2);
+  position: absolute;
+  z-index: 5;
+  touch-action: none;
+}
+
+.group-handle-n,
+.group-handle-s {
+  left: var(--reach);
+  right: var(--reach);
+  height: var(--reach);
+  cursor: ns-resize;
+}
+
+.group-handle-e,
+.group-handle-w {
+  top: var(--reach);
+  bottom: var(--reach);
+  width: var(--reach);
+  cursor: ew-resize;
+}
+
+.group-handle-n { top: var(--out); }
+.group-handle-s { bottom: var(--out); }
+.group-handle-e { right: var(--out); }
+.group-handle-w { left: var(--out); }
+
+.group-handle-ne,
+.group-handle-nw,
+.group-handle-se,
+.group-handle-sw {
+  width: calc(var(--reach) + 6px);
+  height: calc(var(--reach) + 6px);
+}
+
+.group-handle-ne { top: var(--out); right: var(--out); cursor: nesw-resize; }
+.group-handle-nw { top: var(--out); left: var(--out); cursor: nwse-resize; }
+.group-handle-se { bottom: var(--out); right: var(--out); cursor: nwse-resize; }
+.group-handle-sw { bottom: var(--out); left: var(--out); cursor: nesw-resize; }
+
+.group-handle::after {
+  content: "";
+  position: absolute;
+  border-radius: 2px;
+  background: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+/* Edges: a short bar in the middle of the gap. */
+.group-handle-n::after,
+.group-handle-s::after {
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+}
+
+.group-handle-n::after { top: calc(var(--group-gap) / 4 - 2px); }
+.group-handle-s::after { bottom: calc(var(--group-gap) / 4 - 2px); }
+
+.group-handle-e::after,
+.group-handle-w::after {
+  top: 50%;
+  width: 4px;
+  height: 36px;
+  margin-top: -18px;
+}
+
+.group-handle-e::after { right: calc(var(--group-gap) / 4 - 2px); }
+.group-handle-w::after { left: calc(var(--group-gap) / 4 - 2px); }
+
+/* Corners: a little rounded bracket hugging the group's corner. */
+.group-handle-ne::after,
+.group-handle-nw::after,
+.group-handle-se::after,
+.group-handle-sw::after {
+  --inset: calc(var(--group-gap) / 2 - 7px);
+  width: 12px;
+  height: 12px;
+  border: 0 solid var(--muted);
+  border-radius: 0;
+  background: transparent;
+}
+
+.group-handle-ne::after {
+  top: var(--inset);
+  right: var(--inset);
+  border-width: 3px 3px 0 0;
+  border-top-right-radius: 10px;
+}
+
+.group-handle-nw::after {
+  top: var(--inset);
+  left: var(--inset);
+  border-width: 3px 0 0 3px;
+  border-top-left-radius: 10px;
+}
+
+.group-handle-se::after {
+  bottom: var(--inset);
+  right: var(--inset);
+  border-width: 0 3px 3px 0;
+  border-bottom-right-radius: 10px;
+}
+
+.group-handle-sw::after {
+  bottom: var(--inset);
+  left: var(--inset);
+  border-width: 0 0 3px 3px;
+  border-bottom-left-radius: 10px;
+}
+
+.group-handle:hover::after,
+.group-handle:focus-visible::after {
+  opacity: 1;
+}
+
+.group-handle:focus-visible {
+  outline: none;
+}
+
+.group.is-resizing {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.group-size {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* No resize affordances while a group is being carried around. */
+.layout.is-moving-group .group-handle {
+  display: none;
 }
 
 .group-header {
@@ -752,6 +948,36 @@ button {
 
   .split-row > * {
     flex: none;
+  }
+
+  /* Phones always stack full-width groups; hand-picked sizes wait for a
+     bigger screen. */
+  .layout.is-fixed {
+    width: auto;
+  }
+
+  .layout .is-fixed {
+    align-self: stretch;
+  }
+
+  .layout-cell.is-fixed {
+    width: auto;
+  }
+
+  .layout-cell {
+    margin: 0;
+  }
+
+  .layout-cell.has-height {
+    height: auto;
+  }
+
+  .has-height .grid {
+    grid-auto-rows: var(--row-height);
+  }
+
+  .group-handle {
+    display: none;
   }
 
   .group {

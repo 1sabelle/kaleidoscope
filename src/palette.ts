@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from "react";
-import type { Group, LayoutNode, Palette, Swatch } from "./types";
+import type { Group, GroupBox, LayoutNode, Palette, Swatch } from "./types";
 import { normalizeHex } from "./color";
 import {
   findGroup,
@@ -17,6 +17,21 @@ const EXPORT_VERSION = 2;
 export const MIN_COLUMNS = 1;
 export const MAX_COLUMNS = 12;
 export const MAX_ROW_SPAN = 6;
+export const MIN_GROUP_WIDTH = 200; // px
+export const MIN_GROUP_HEIGHT = 120; // px
+
+const BOX_MINIMUMS: Required<GroupBox> = {
+  width: MIN_GROUP_WIDTH,
+  height: MIN_GROUP_HEIGHT,
+  offsetX: 0,
+  offsetY: 0,
+};
+
+/** A number for one part of a group's size, or undefined if it isn't one. */
+function boxValue(key: keyof GroupBox, value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.max(BOX_MINIMUMS[key], Math.round(value));
+}
 const MAX_DEPTH = 32; // guards parsing against absurdly nested files
 
 export type Action =
@@ -27,6 +42,10 @@ export type Action =
   | { type: "removeGroup"; groupId: string }
   | { type: "moveGroup"; groupId: string; targetId: string; side: Side }
   | { type: "mergeGroup"; groupId: string; intoId: string }
+  | { type: "pinWidths"; widths: Record<string, number> }
+  // null clears that part of the size, so it follows the layout again
+  | { type: "resizeGroup"; groupId: string; box: { [K in keyof GroupBox]?: number | null } }
+  | { type: "resetSizes" }
   | { type: "add"; groupId: string; hexes: string[] }
   | { type: "addBlank"; groupId: string; id: string }
   | { type: "swap"; id: string; withId: string }
@@ -108,6 +127,29 @@ function layoutReducer(layout: LayoutNode, action: Action): LayoutNode {
       ]);
       return removeGroup(merged, action.groupId) ?? layout;
     }
+    case "pinWidths":
+      return mapGroups(layout, (g) =>
+        g.id in action.widths ? { ...g, width: boxValue("width", action.widths[g.id]) } : g,
+      );
+    case "resizeGroup":
+      return mapGroups(layout, (g) => {
+        if (g.id !== action.groupId) return g;
+        const box = Object.fromEntries(
+          Object.entries(action.box).map(([key, value]) => [
+            key,
+            boxValue(key as keyof GroupBox, value),
+          ]),
+        );
+        return { ...g, ...box };
+      });
+    case "resetSizes":
+      return mapGroups(layout, (g) => ({
+        ...g,
+        width: undefined,
+        height: undefined,
+        offsetX: undefined,
+        offsetY: undefined,
+      }));
     case "add":
       return editSwatches(layout, action.groupId, (swatches) => [
         ...swatches,
@@ -209,6 +251,10 @@ function parseNode(data: unknown, seenIds: Set<string>, depth = 0): LayoutNode |
     name: typeof node.name === "string" ? node.name : "Untitled group",
     columns: clamp(Number(node.columns) || 4, MIN_COLUMNS, MAX_COLUMNS),
     swatches: parseSwatches(node.swatches, seenIds),
+    width: boxValue("width", node.width),
+    height: boxValue("height", node.height),
+    offsetX: boxValue("offsetX", node.offsetX) || undefined,
+    offsetY: boxValue("offsetY", node.offsetY) || undefined,
   };
 }
 
@@ -247,6 +293,10 @@ function exportNode(node: LayoutNode): unknown {
     kind: "group",
     name: node.name,
     columns: node.columns,
+    width: node.width,
+    height: node.height,
+    offsetX: node.offsetX,
+    offsetY: node.offsetY,
     swatches: node.swatches.map(({ hex, label, colSpan, rowSpan }) => ({
       hex,
       label,

@@ -6,8 +6,19 @@ export type Swatch = {
   rowSpan: number; // height in grid cells
 };
 
+/**
+ * A group's hand-picked size, in px. Unset parts follow the layout: width
+ * shares the row, height fits the grid, offsets are 0.
+ */
+export type GroupBox = {
+  width?: number;
+  height?: number; // grid rows stretch to fill it
+  offsetX?: number; // space before the group, left by dragging its left edge in
+  offsetY?: number; // likewise for the top edge
+};
+
 /** A named set of swatches with its own grid. */
-export type Group = {
+export type Group = GroupBox & {
   kind: "group";
   id: string;
   name: string;
