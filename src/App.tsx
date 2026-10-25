@@ -383,7 +383,7 @@ export default function App() {
         </div>
 
         <div className="controls">
-          <div className="text-actions">
+          <div className="text-actions" role="group" aria-label="Layout">
             {groups.some((g) => g.width ?? g.height ?? g.offsetX ?? g.offsetY) && (
               <button
                 type="button"
@@ -397,6 +397,24 @@ export default function App() {
             <button type="button" className="text-btn" onClick={addGroup}>
               Add group
             </button>
+          </div>
+
+          <div className="text-actions theme-switch" role="group" aria-label="Theme">
+            {(["system", "light", "dark"] as Theme[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                className="text-btn"
+                aria-pressed={theme === option}
+                onClick={() => setTheme(option)}
+                title={option === "system" ? "Follow your system setting" : undefined}
+              >
+                {option === "system" ? "Auto" : option}
+              </button>
+            ))}
+          </div>
+
+          <div className="text-actions" role="group" aria-label="File">
             <button
               type="button"
               className="text-btn"
@@ -419,21 +437,6 @@ export default function App() {
               if (file) importPalette(file);
             }}
           />
-
-          <div className="text-actions theme-switch" role="group" aria-label="Theme">
-            {(["system", "light", "dark"] as Theme[]).map((option) => (
-              <button
-                key={option}
-                type="button"
-                className="text-btn"
-                aria-pressed={theme === option}
-                onClick={() => setTheme(option)}
-                title={option === "system" ? "Follow your system setting" : undefined}
-              >
-                {option === "system" ? "Auto" : option}
-              </button>
-            ))}
-          </div>
         </div>
       </header>
 

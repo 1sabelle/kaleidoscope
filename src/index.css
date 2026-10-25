@@ -24,7 +24,7 @@
 
   color-scheme: light dark;
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -113,7 +113,7 @@ button {
 .palette-meta {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -132,7 +132,7 @@ button {
   border-radius: 0;
   background: transparent;
   font-family: var(--font-display);
-  font-size: 60px;
+  font-size: 64px;
   font-weight: 400;
   line-height: 1.05;
   letter-spacing: -0.01em;
@@ -148,7 +148,17 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  row-gap: 8px;
+}
+
+/* Sets of actions (layout, file, theme) are split by a dot with room around
+   it; inside a set, buttons are split by thin bars. */
+.controls > .text-actions ~ .text-actions::before {
+  content: "·";
+  margin: 0 28px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ---------- Controls ---------- */
@@ -160,7 +170,7 @@ button {
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: transparent;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -192,14 +202,14 @@ button {
 
 .stepper .btn {
   padding: 0;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0;
 }
 
 .stepper-label {
   margin-right: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -223,7 +233,7 @@ button {
   border: none;
   background: transparent;
   color: var(--text);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -248,10 +258,6 @@ button {
 }
 
 /* Auto | Light | Dark: the unchosen ones are muted, the chosen one underlined. */
-.theme-switch {
-  margin-left: 16px;
-}
-
 .theme-switch .text-btn {
   color: var(--muted);
 }
@@ -275,7 +281,7 @@ button {
   border: 1px solid var(--danger);
   border-radius: var(--radius-sm);
   color: var(--danger);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .notice button {
@@ -516,7 +522,7 @@ button {
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -540,7 +546,7 @@ button {
 .group-number {
   flex: none;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
@@ -599,7 +605,7 @@ button {
   border-radius: 0;
   background: transparent;
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 400;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -629,7 +635,7 @@ button {
   border: none;
   border-radius: 50%;
   background: color-mix(in srgb, var(--text) 7%, transparent);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
 }
 
@@ -701,7 +707,7 @@ button {
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -732,7 +738,7 @@ button {
   min-width: 0;
   overflow: hidden;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 400;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -838,7 +844,7 @@ button {
 
 .swatch-label {
   font-family: var(--font-display);
-  font-size: 21px;
+  font-size: 23px;
   font-weight: 400;
   line-height: 1.1;
 }
@@ -856,7 +862,7 @@ button {
 
 .swatch-hex {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   opacity: 0.8;
   letter-spacing: 0.06em;
 }
@@ -958,7 +964,7 @@ button {
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--ink) 18%, transparent);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -1064,7 +1070,7 @@ button {
   margin: 24px 0 0;
   color: var(--muted);
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 24px;
   font-style: italic;
 }
 
@@ -1147,11 +1153,11 @@ button {
   }
 
   .palette-name {
-    font-size: 38px;
+    font-size: 40px;
   }
 
   .group-name {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .swatch {
@@ -1177,10 +1183,10 @@ button {
   }
 
   .swatch-label {
-    font-size: 16px;
+    font-size: 17px;
   }
 
   .swatch-hex {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
