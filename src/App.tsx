@@ -36,6 +36,8 @@ import type { Theme } from "./theme";
 type Point = { x: number; y: number };
 
 const isGroupDrag = (data: Record<string, unknown> | undefined) => data?.type === "group";
+const isColourSetting = (data: Record<string, unknown> | undefined) =>
+  data?.type === "colour-setting";
 
 const centerOf = (rect: ClientRect): Point => ({
   x: rect.left + rect.width / 2,
@@ -55,6 +57,8 @@ const EDGE_FRACTION = 0.25;
 const MAX_EDGE = 96;
 // Dropping in the gap next to a group still counts, but not from miles away.
 const MAX_GROUP_REACH = 64;
+// The round colour swatches are small, so a near miss still counts.
+const COLOUR_SETTING_REACH = 12;
 
 function dropZoneFor(point: Point, rect: ClientRect): DropZone {
   const edgeX = Math.min(rect.width * EDGE_FRACTION, MAX_EDGE);
@@ -98,9 +102,18 @@ const groupCollision: CollisionDetection = ({
 };
 
 // Tiles have different sizes, so "what's under the pointer" beats "nearest centre".
-// Keyboard drags have no pointer, so they fall back to the nearest tile.
+// Keyboard drags have no pointer, so they fall back to the nearest tile. Round
+// colour swatches (background, group fills) come first, with a little reach.
 const collisionDetection: CollisionDetection = (args) => {
   if (isGroupDrag(args.active.data.current)) return groupCollision(args);
+  const point = args.pointerCoordinates ?? centerOf(args.collisionRect);
+  for (const container of args.droppableContainers) {
+    const rect = args.droppableRects.get(container.id);
+    if (rect && isColourSetting(container.data.current)
+      && distanceToRect(point, rect) <= COLOUR_SETTING_REACH) {
+      return [{ id: container.id, data: { droppableContainer: container } }];
+    }
+  }
   const scoped = {
     ...args,
     droppableContainers: args.droppableContainers.filter(
@@ -346,6 +359,12 @@ export default function App() {
     if (!over || over.id === active.id) return;
     const id = String(active.id);
     const target = over.data.current;
+    // Dropping onto a round colour swatch gives it the tile's colour; the tile stays.
+    if (isColourSetting(target)) {
+      const hex = groups.flatMap((g) => g.swatches).find((s) => s.id === id)?.hex;
+      if (hex) target?.onChange(hex);
+      return;
+    }
     // Dropping onto a tile swaps the two; dropping onto a group's + moves the
     // colour to the end of that group. Everything else stays where it is.
     withTransition(() =>
@@ -401,116 +420,117 @@ export default function App() {
     activeDrag?.type === "group" ? groups.find((g) => g.id === activeDrag.id) : undefined;
 
   return (
-    <div className="app">
-      <ColourSetting
-        label="Background"
-        value={colours.background}
-        readCurrent={() => renderedColour("body")}
-        onChange={(hex) => setColour("background", hex)}
-        align="right"
-        className="background-colour"
-      />
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetection}
+      onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onDragCancel={endDrag}
+    >
+      <div className="app">
+        <ColourSetting
+          label="Background"
+          value={colours.background}
+          readCurrent={() => renderedColour("body")}
+          onChange={(hex) => setColour("background", hex)}
+          align="right"
+          className="background-colour"
+          dropId="fill:background"
+        />
 
-      <header className="toolbar">
-        <div className="masthead">
-          <p className="kicker">Kaleidoscope · Palette</p>
-          <PaletteSwitcher
-            entries={library.entries}
-            currentId={library.currentId}
-            onOpen={(id) => dispatch({ type: "openPalette", id })}
-            onNew={() => dispatch({ type: "newPalette", id: crypto.randomUUID() })}
-            onDelete={(id) => dispatch({ type: "deletePalette", id })}
-            onRename={(name) => dispatch({ type: "rename", name })}
-          />
-          <p className="palette-meta">
-            {groups.length} {groups.length === 1 ? "group" : "groups"} · {swatchCount}{" "}
-            {swatchCount === 1 ? "colour" : "colours"}
+        <header className="toolbar">
+          <div className="masthead">
+            <p className="kicker">Kaleidoscope · Palette</p>
+            <PaletteSwitcher
+              entries={library.entries}
+              currentId={library.currentId}
+              onOpen={(id) => dispatch({ type: "openPalette", id })}
+              onNew={() => dispatch({ type: "newPalette", id: crypto.randomUUID() })}
+              onDelete={(id) => dispatch({ type: "deletePalette", id })}
+              onRename={(name) => dispatch({ type: "rename", name })}
+            />
+            <p className="palette-meta">
+              {groups.length} {groups.length === 1 ? "group" : "groups"} · {swatchCount}{" "}
+              {swatchCount === 1 ? "colour" : "colours"}
+            </p>
+          </div>
+
+          <div className="controls">
+            <div className="text-actions" role="group" aria-label="Layout">
+              {groups.some((g) => g.width ?? g.height ?? g.offsetX ?? g.offsetY) && (
+                <button
+                  type="button"
+                  className="text-btn"
+                  onClick={() => dispatch({ type: "resetSizes" })}
+                  title="Undo hand-picked group sizes so groups fill the screen again"
+                >
+                  Fit to screen
+                </button>
+              )}
+              <button type="button" className="text-btn" onClick={addGroup}>
+                Add group
+              </button>
+            </div>
+
+            <div className="text-actions theme-switch" role="group" aria-label="Theme">
+              {(["system", "light", "dark"] as Theme[]).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className="text-btn"
+                  aria-pressed={theme === option}
+                  onClick={() => setTheme(option)}
+                  title={option === "system" ? "Follow your system setting" : undefined}
+                >
+                  {option === "system" ? "Auto" : option}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-actions" role="group" aria-label="File">
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => importRef.current?.click()}
+              >
+                Import
+              </button>
+              <button type="button" className="text-btn" onClick={exportPalette}>
+                Export
+              </button>
+              <button
+                type="button"
+                className="text-btn"
+                onClick={sharePalette}
+                title="Copy a link that opens this palette"
+              >
+                {shared ? "Link copied" : "Share"}
+              </button>
+            </div>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = ""; // so picking the same file again still fires
+                if (file) importPalette(file);
+              }}
+            />
+          </div>
+        </header>
+
+        {importError && (
+          <p className="notice" role="alert">
+            {importError}
+            <button type="button" onClick={() => setImportError(null)} aria-label="Dismiss">
+              ×
+            </button>
           </p>
-        </div>
+        )}
 
-        <div className="controls">
-          <div className="text-actions" role="group" aria-label="Layout">
-            {groups.some((g) => g.width ?? g.height ?? g.offsetX ?? g.offsetY) && (
-              <button
-                type="button"
-                className="text-btn"
-                onClick={() => dispatch({ type: "resetSizes" })}
-                title="Undo hand-picked group sizes so groups fill the screen again"
-              >
-                Fit to screen
-              </button>
-            )}
-            <button type="button" className="text-btn" onClick={addGroup}>
-              Add group
-            </button>
-          </div>
-
-          <div className="text-actions theme-switch" role="group" aria-label="Theme">
-            {(["system", "light", "dark"] as Theme[]).map((option) => (
-              <button
-                key={option}
-                type="button"
-                className="text-btn"
-                aria-pressed={theme === option}
-                onClick={() => setTheme(option)}
-                title={option === "system" ? "Follow your system setting" : undefined}
-              >
-                {option === "system" ? "Auto" : option}
-              </button>
-            ))}
-          </div>
-
-          <div className="text-actions" role="group" aria-label="File">
-            <button
-              type="button"
-              className="text-btn"
-              onClick={() => importRef.current?.click()}
-            >
-              Import
-            </button>
-            <button type="button" className="text-btn" onClick={exportPalette}>
-              Export
-            </button>
-            <button
-              type="button"
-              className="text-btn"
-              onClick={sharePalette}
-              title="Copy a link that opens this palette"
-            >
-              {shared ? "Link copied" : "Share"}
-            </button>
-          </div>
-          <input
-            ref={importRef}
-            type="file"
-            accept=".json,application/json"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = ""; // so picking the same file again still fires
-              if (file) importPalette(file);
-            }}
-          />
-        </div>
-      </header>
-
-      {importError && (
-        <p className="notice" role="alert">
-          {importError}
-          <button type="button" onClick={() => setImportError(null)} aria-label="Dismiss">
-            ×
-          </button>
-        </p>
-      )}
-
-      <DndContext
-        sensors={sensors}
-        collisionDetection={collisionDetection}
-        onDragStart={handleDragStart}
-        onDragMove={handleDragMove}
-        onDragEnd={handleDragEnd}
-        onDragCancel={endDrag}
-      >
         <main
           className={[
             "layout",
@@ -559,13 +579,13 @@ export default function App() {
             </div>
           )}
         </DragOverlay>
-      </DndContext>
 
-      {swatchCount === 0 && (
-        <p className="empty-hint">
-          Press <strong>+</strong> to add your first colour, or paste hex codes anywhere on the page.
-        </p>
-      )}
-    </div>
+        {swatchCount === 0 && (
+          <p className="empty-hint">
+            Press <strong>+</strong> to add your first colour, or paste hex codes anywhere on the page.
+          </p>
+        )}
+      </div>
+    </DndContext>
   );
 }

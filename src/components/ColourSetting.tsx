@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
+import { useDroppable } from "@dnd-kit/core";
 import { normalizeHex } from "../color";
 
 type Props = {
@@ -10,6 +11,8 @@ type Props = {
   onChange: (hex: string | null) => void; // null goes back to the default colour
   align?: "left" | "right"; // which edge of the swatch the picker lines up with
   className?: string;
+  /** Lets a colour tile be dropped on the swatch to use its colour. */
+  dropId: string;
 };
 
 /** A round swatch showing a colour; clicking it opens a picker to change it. */
@@ -20,12 +23,17 @@ export function ColourSetting({
   onChange,
   align = "left",
   className,
+  dropId,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
   const rootRef = useRef<HTMLSpanElement>(null);
   const shown = value ?? current ?? "#808080";
+  const { setNodeRef, isOver } = useDroppable({
+    id: dropId,
+    data: { type: "colour-setting", onChange },
+  });
 
   // With no custom colour the swatch shows the default, read off the page.
   // That waits a frame: the theme is applied in the parent's effect, after ours.
@@ -58,8 +66,9 @@ export function ColourSetting({
   return (
     <span className={["colour-setting", className].filter(Boolean).join(" ")} ref={rootRef}>
       <button
+        ref={setNodeRef}
         type="button"
-        className="colour-swatch"
+        className={`colour-swatch${isOver ? " is-drop-target" : ""}`}
         style={{ background: shown }}
         aria-expanded={open}
         aria-label={`${label} colour`}

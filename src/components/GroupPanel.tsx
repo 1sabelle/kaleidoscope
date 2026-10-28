@@ -272,6 +272,7 @@ export function GroupPanel({
           readCurrent={() => renderedColour(`section.group[data-group-id="${groupId}"]`)}
           onChange={(fill) => dispatch({ type: "setGroupFill", groupId, fill })}
           className="group-colour"
+          dropId={`fill:${groupId}`}
         />
 
         <input
