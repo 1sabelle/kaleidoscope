@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { cssColorToHex, isLight } from "./color";
 
-export type Theme = "system" | "light" | "dark";
+export type Theme = "system" | "light" | "dark" | "cuivienen";
 
 /** Hand-picked colours laid over the theme; unset ones use the theme's own. */
 export type CustomColours = {
@@ -14,7 +14,7 @@ const COLOURS_KEY = "kaleidoscope:colours";
 function loadTheme(): Theme {
   try {
     const saved = localStorage.getItem(THEME_KEY);
-    return saved === "light" || saved === "dark" ? saved : "system";
+    return saved === "light" || saved === "dark" || saved === "cuivienen" ? saved : "system";
   } catch {
     return "system";
   }
@@ -42,7 +42,7 @@ function save(key: string, value: string | null) {
 /**
  * Applies the theme and custom colours to <html> (index.html does the same
  * before first paint, so there's no flash):
- * - `data-theme`: "light" or "dark", or absent to follow the OS
+ * - `data-theme`: "light", "dark" or "cuivienen", or absent to follow the OS
  * - `--bg`: a custom background, with `data-ink` saying whether text on it
  *   should be "dark" or "light"
  */

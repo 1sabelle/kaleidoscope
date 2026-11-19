@@ -17,7 +17,7 @@
       try {
         const root = document.documentElement;
         const theme = localStorage.getItem("kaleidoscope:theme");
-        if (theme === "light" || theme === "dark") root.dataset.theme = theme;
+        if (theme === "light" || theme === "dark" || theme === "cuivienen") root.dataset.theme = theme;
         const colours = JSON.parse(localStorage.getItem("kaleidoscope:colours") || "{}");
         const isLight = (hex) => {
           const [r, g, b] = [1, 3, 5].map((i) => {

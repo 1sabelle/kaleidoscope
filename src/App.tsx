@@ -474,7 +474,7 @@ export default function App() {
             </div>
 
             <div className="text-actions theme-switch" role="group" aria-label="Theme">
-              {(["system", "light", "dark"] as Theme[]).map((option) => (
+              {(["system", "light", "dark", "cuivienen"] as Theme[]).map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -483,7 +483,7 @@ export default function App() {
                   onClick={() => setTheme(option)}
                   title={option === "system" ? "Follow your system setting" : undefined}
                 >
-                  {option === "system" ? "Auto" : option}
+                  {option === "system" ? "Auto" : option === "cuivienen" ? "Cuiviénen" : option}
                 </button>
               ))}
             </div>

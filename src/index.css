@@ -58,6 +58,19 @@
   --danger: #f87171;
 }
 
+:root[data-theme="cuivienen"] {
+  --bg: #141a29;
+  --surface: #181f30;
+  --text: #eae0cf; /* cream */
+  --muted: #7c86a3;
+  --border: #232c44;
+  --rule: #eae0cf;
+  --accent: #9fa6ce; /* periwinkle */
+  --accent-ink: #141a29;
+  --danger: #dd6b6b;
+  color-scheme: dark;
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
 }
