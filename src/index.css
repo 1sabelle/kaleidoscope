@@ -18,8 +18,8 @@
   --row-height: 160px;
   --shadow-print: 5px 5px 0 color-mix(in srgb, var(--text) 16%, transparent);
 
-  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-  --font-ui: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Lora Variable", Georgia, serif;
+  --font-ui: "Figtree Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace; /* hex codes */
 
   color-scheme: light dark;
